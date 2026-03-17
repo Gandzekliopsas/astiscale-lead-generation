@@ -325,22 +325,25 @@ def _do_run(run_id: int, req: RunRequest):
                 random.shuffle(INDUSTRIES)
                 industries = INDUSTRIES[:6]
 
-        cities = [req.city] if req.city else random.sample(CITIES, min(3, len(CITIES)))
+        cities = [req.city] if req.city else random.sample(CITIES, min(5, len(CITIES)))
         log(f"  Miestai: {cities}")
         log(f"  Industrijos: {[i['lt'] for i in industries]}")
         if website_filter != ["none", "old", "modern", "unreachable"]:
             log(f"  Svetainės filtras: {website_filter}")
 
         # ── Search ────────────────────────────────────────────────────────────
+        # Collect up to 10× the requested limit as raw candidates so the
+        # website-status filter has enough material to reach req.limit leads.
         raw_leads = []
         seen = set()
+        target_raw = req.limit * 10
 
         for ind in industries:
             for cty in cities:
-                if len(raw_leads) >= req.limit * 3:
+                if len(raw_leads) >= target_raw:
                     break
                 log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Ieškoma: {ind['lt']} / {cty.capitalize()}...")
-                new = find_businesses_osm(ind["query"], cty, max_results=20)
+                new = find_businesses_osm(ind["query"], cty, max_results=50)
                 for lead in new:
                     key = lead.company_name.lower().strip()
                     if key and key not in seen:
@@ -348,7 +351,7 @@ def _do_run(run_id: int, req: RunRequest):
                         lead.industry = ind["lt"]
                         raw_leads.append(lead)
                 log(f"  Rasta: {len(new)}")
-            if len(raw_leads) >= req.limit * 3:
+            if len(raw_leads) >= target_raw:
                 break
 
         # Prioritize by contact info
