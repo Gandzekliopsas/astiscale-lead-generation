@@ -481,6 +481,12 @@ select.form-control { cursor: pointer; }
               </select>
             </div>
             <div class="form-group">
+              <label>Industrija (neprivaloma)</label>
+              <select class="form-control" id="runIndustry">
+                <option value="">Automatiškai (pagal paslaugą)</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Leadų skaičius</label>
               <input type="number" class="form-control" id="runLimit" value="20" min="5" max="100">
             </div>
@@ -624,15 +630,16 @@ async function loadConfig() {
   });
   allCities = cfg.cities;
 
-  // Populate industry filter (not run form anymore — that uses service cards)
-  const indSel = document.getElementById('filterIndustry');
-  if (indSel) {
+  // Populate industry dropdowns (filter page + run form)
+  ['filterIndustry', 'runIndustry'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
     cfg.industries_full.forEach(i => {
       const o = document.createElement('option');
       o.value = i.query; o.textContent = i.lt;
-      indSel.appendChild(o);
+      sel.appendChild(o);
     });
-  }
+  });
   allIndustries = cfg.industries_full;
 
   // Load dates for filter
@@ -924,6 +931,7 @@ async function startRun() {
 
   const body = {
     city: document.getElementById('runCity').value,
+    industry: document.getElementById('runIndustry').value,
     service_target: selectedService,
     limit: parseInt(document.getElementById('runLimit').value) || 20,
     generate_emails: document.getElementById('runEmails').checked,
