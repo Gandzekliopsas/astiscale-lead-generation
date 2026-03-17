@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AstiScale — Lead Generation</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0d0d1a;
+  --sidebar:  #111122;
+  --card:     #16162a;
+  --card2:    #1c1c35;
+  --border:   #2a2a4a;
+  --text:     #e2e8f0;
+  --muted:    #8892aa;
+  --accent:   #667eea;
+  --accent2:  #764ba2;
+  --green:    #4ade80;
+  --yellow:   #facc15;
+  --red:      #f87171;
+  --blue:     #60a5fa;
+  --radius:   12px;
+  --shadow:   0 4px 24px rgba(0,0,0,0.4);
+}
+html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* ── Layout ──────────────────────────────────────────── */
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ─────────────────────────────────────────── */
+.sidebar {
+  width: 220px; min-width: 220px; background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 0;
+  overflow-y: auto;
+}
+.logo {
+  padding: 24px 20px 20px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+}
+.logo h1 { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+.logo p { font-size: 11px; opacity: .8; margin-top: 2px; }
+.nav { padding: 12px 0; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 20px; cursor: pointer; color: var(--muted);
+  transition: all .15s; font-size: 13.5px; font-weight: 500;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { color: var(--text); background: rgba(102,126,234,.08); }
+.nav-item.active { color: var(--accent); background: rgba(102,126,234,.12); border-left-color: var(--accent); }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+
+/* ── Main content ────────────────────────────────────── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  padding: 0 28px; height: 56px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--border);
+  background: var(--sidebar);
+}
+.topbar-title { font-size: 16px; font-weight: 600; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.badge {
+  padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  letter-spacing: .5px; text-transform: uppercase;
+}
+.badge-green { background: rgba(74,222,128,.15); color: var(--green); }
+.badge-yellow { background: rgba(250,204,21,.15); color: var(--yellow); }
+.badge-red { background: rgba(248,113,113,.15); color: var(--red); }
+.badge-blue { background: rgba(96,165,250,.15); color: var(--blue); }
+
+.content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+/* ── Pages ───────────────────────────────────────────── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Cards ───────────────────────────────────────────── */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.card-sm { padding: 16px; }
+
+/* ── Stats grid ──────────────────────────────────────── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+.stat-card.green::before { background: linear-gradient(90deg, var(--green), #22c55e); }
+.stat-card.yellow::before { background: linear-gradient(90deg, var(--yellow), #f59e0b); }
+.stat-card.red::before { background: linear-gradient(90deg, var(--red), #ef4444); }
+.stat-card.blue::before { background: linear-gradient(90deg, var(--blue), #3b82f6); }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; font-weight: 600; }
+.stat-value { font-size: 32px; font-weight: 700; margin: 6px 0 2px; line-height: 1; }
+.stat-sub { font-size: 11px; color: var(--muted); }
+
+/* ── Section headers ─────────────────────────────────── */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title { font-size: 15px; font-weight: 600; }
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; border: none;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+  transition: all .15s; text-decoration: none;
+}
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+.btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,.4); }
+.btn-ghost { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: rgba(255,255,255,.1); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-danger { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+
+/* ── Table ───────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; background: var(--card); }
+thead { position: sticky; top: 0; z-index: 2; }
+th {
+  background: var(--card2); color: var(--muted); text-align: left;
+  padding: 10px 14px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .7px; font-weight: 600; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+td { padding: 11px 14px; border-bottom: 1px solid rgba(42,42,74,.5); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(102,126,234,.04); }
+.clickable { cursor: pointer; }
+
+/* ── Status dots ─────────────────────────────────────── */
+.status-dot {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  white-space: nowrap;
+}
+.status-none { background: rgba(248,113,113,.15); color: var(--red); }
+.status-old  { background: rgba(250,204,21,.15);  color: var(--yellow); }
+.status-modern { background: rgba(74,222,128,.15); color: var(--green); }
+
+/* ── Filters bar ─────────────────────────────────────── */
+.filters {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
+}
+.filter-input {
+  background: var(--card); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;
+}
+.filter-input:focus { border-color: var(--accent); }
+select.filter-input { cursor: pointer; }
+
+/* ── Modal ───────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 100;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; width: min(720px, 96vw);
+  max-height: 90vh; display: flex; flex-direction: column;
+  box-shadow: var(--shadow);
+}
+.modal-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-close {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 20px; line-height: 1; padding: 4px;
+}
+.modal-close:hover { color: var(--text); }
+
+/* ── Info rows ───────────────────────────────────────── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.info-item label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 3px; }
+.info-item span { font-size: 13px; color: var(--text); }
+
+/* ── Email / script box ──────────────────────────────── */
+.text-box {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; font-size: 12.5px;
+  line-height: 1.7; color: var(--text); white-space: pre-wrap;
+  font-family: 'Segoe UI', monospace; max-height: 280px;
+  overflow-y: auto; position: relative;
+}
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(102,126,234,.2); border: 1px solid rgba(102,126,234,.4);
+  color: var(--accent); border-radius: 6px; padding: 4px 10px;
+  font-size: 11px; cursor: pointer; font-weight: 600;
+}
+.copy-btn:hover { background: rgba(102,126,234,.35); }
+
+/* ── Run page ────────────────────────────────────────── */
+.run-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+.form-control {
+  width: 100%; background: var(--card2); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 14px; border-radius: 8px;
+  font-size: 13px; outline: none;
+}
+.form-control:focus { border-color: var(--accent); }
+select.form-control { cursor: pointer; }
+
+.log-box {
+  background: #0a0a14; border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; font-size: 12px; font-family: 'Consolas', monospace;
+  color: #a0aec0; height: 320px; overflow-y: auto; white-space: pre-wrap;
+  line-height: 1.6;
+}
+.log-box .log-ok { color: var(--green); }
+.log-box .log-warn { color: var(--yellow); }
+.log-box .log-err { color: var(--red); }
+
+/* ── Day chart ───────────────────────────────────────── */
+.chart-bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin-top: 12px; }
+.chart-bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px; height: 100%; }
+.chart-bar-fill { background: linear-gradient(180deg, var(--accent), var(--accent2)); border-radius: 4px 4px 0 0; width: 100%; min-height: 4px; transition: height .3s; }
+.chart-bar-label { font-size: 9px; color: var(--muted); white-space: nowrap; }
+
+/* ── Tabs ────────────────────────────────────────────── */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tab { padding: 8px 16px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Toggle ──────────────────────────────────────────── */
+.toggle-wrap { display: flex; align-items: center; gap: 10px; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--border); border-radius: 22px; transition: .2s;
+}
+.toggle-slider:before {
+  content: ''; position: absolute; height: 16px; width: 16px;
+  left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); }
+.toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { width: 0; min-width: 0; overflow: hidden; }
+  .run-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Utility ─────────────────────────────────────────── */
+.flex { display: flex; } .gap-8 { gap: 8px; } .gap-12 { gap: 12px; }
+.mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+.text-muted { color: var(--muted); } .text-sm { font-size: 12px; }
+.fw-600 { font-weight: 600; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ── Sidebar ───────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="logo">
+    <h1>AstiScale</h1>
+    <p>Lead Generation</p>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('leads')">
+      <span class="nav-icon">🎯</span> Leadai
+    </div>
+    <div class="nav-item" onclick="showPage('run')">
+      <span class="nav-icon">⚡</span> Paleisti paiešką
+    </div>
+    <div class="nav-item" onclick="showPage('history')">
+      <span class="nav-icon">📋</span> Istorija
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    astiscaleautomation@gmail.com
+  </div>
+</aside>
+
+<!-- ── Main ──────────────────────────────────────────── -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="pageTitle">Dashboard</span>
+    <div class="topbar-right">
+      <span id="todayDate" class="text-muted text-sm"></span>
+      <span id="runBadge" class="badge badge-green" style="display:none">● Vyksta paieška</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD PAGE ══════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:24px" id="chartsRow">
+        <div class="card">
+          <div class="section-header">
+            <span class="section-title">Leadai per 14 dienų</span>
+          </div>
+          <div class="chart-bar-wrap" id="chart14"></div>
+        </div>
+        <div class="card">
+          <div class="section-header">
+            <span class="section-title">Miestai</span>
+          </div>
+          <div id="cityBreakdown" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-header">
+          <span class="section-title">Šiandieniai leadai</span>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('leads')">Visi →</button>
+        </div>
+        <div class="table-wrap" id="recentLeadsWrap">
+          <table><tbody id="recentLeadsBody"><tr><td colspan="7" class="text-muted" style="padding:24px;text-align:center">Kraunama...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LEADS PAGE ══════════════════════════════════ -->
+    <div class="page" id="page-leads">
+      <div class="filters">
+        <input type="text" class="filter-input" id="searchInput" placeholder="🔍  Ieškoti įmonės, el. pašto..." style="min-width:220px" oninput="debounceLoadLeads()">
+        <select class="filter-input" id="filterDate" onchange="loadLeads()">
+          <option value="">Visos datos</option>
+        </select>
+        <select class="filter-input" id="filterCity" onchange="loadLeads()">
+          <option value="">Visi miestai</option>
+        </select>
+        <select class="filter-input" id="filterStatus" onchange="loadLeads()">
+          <option value="">Visi statusai</option>
+          <option value="none">❌ Nėra svetainės</option>
+          <option value="old">⚠️ Sena svetainė</option>
+          <option value="modern">✅ Moderni</option>
+        </select>
+        <select class="filter-input" id="filterIndustry" onchange="loadLeads()">
+          <option value="">Visos industrijos</option>
+        </select>
+        <span id="leadsCount" class="text-muted text-sm" style="margin-left:auto"></span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Įmonė</th>
+              <th>Industrija</th>
+              <th>Miestas</th>
+              <th>Telefonas</th>
+              <th>El. paštas</th>
+              <th>Svetainė</th>
+              <th>Paslaugos</th>
+              <th>Veiksmai</th>
+            </tr>
+          </thead>
+          <tbody id="leadsBody">
+            <tr><td colspan="9" class="text-muted" style="padding:32px;text-align:center">Kraunama...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" id="prevPage" onclick="changePage(-1)">← Ankstesnis</button>
+        <span id="pageInfo" class="text-muted text-sm"></span>
+        <button class="btn btn-ghost btn-sm" id="nextPage" onclick="changePage(1)">Kitas →</button>
+      </div>
+    </div>
+
+    <!-- ══ RUN PAGE ════════════════════════════════════ -->
+    <div class="page" id="page-run">
+      <div class="run-grid">
+        <div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom:20px">⚡ Nauja paieška</div>
+
+            <div class="form-group">
+              <label>Miestas</label>
+              <select class="form-control" id="runCity">
+                <option value="">Automatiškai (keli miestai)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Industrija</label>
+              <select class="form-control" id="runIndustry">
+                <option value="">Automatiškai (kelios industrijos)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Leadų skaičius</label>
+              <input type="number" class="form-control" id="runLimit" value="20" min="5" max="100">
+            </div>
+            <div class="form-group">
+              <div class="toggle-wrap">
+                <label class="toggle">
+                  <input type="checkbox" id="runEmails" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span>Generuoti el. laiškus (Claude AI)</span>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" id="runBtn" onclick="startRun()" style="width:100%;justify-content:center;margin-top:8px">
+              ⚡ Paleisti paiešką
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="height:100%">
+            <div class="section-header">
+              <span class="section-title">Veiklos žurnalas</span>
+              <button class="btn btn-ghost btn-sm" onclick="clearLog()">Išvalyti</button>
+            </div>
+            <div class="log-box" id="logBox">Spausk "Paleisti paiešką" kad pradėtum...\n</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ HISTORY PAGE ════════════════════════════════ -->
+    <div class="page" id="page-history">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:16px">📋 Paleistų paieškų istorija</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Miestas</th>
+                <th>Industrija</th>
+                <th>Statusas</th>
+                <th>Rasti leadai</th>
+                <th>Pradėta</th>
+                <th>Atsisiųsti</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr><td colspan="7" class="text-muted" style="padding:24px;text-align:center">Kraunama...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ══ LEAD DETAIL MODAL ══════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalCompany"></div>
+        <div class="text-muted text-sm" id="modalIndustry" style="margin-top:3px"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-grid" id="modalInfo"></div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('email')">📧 El. laiškas</div>
+        <div class="tab" onclick="switchTab('call')">📞 Skambučio scenarijus</div>
+      </div>
+
+      <div id="tabEmail">
+        <div style="position:relative">
+          <div class="text-box" id="emailBox"></div>
+          <button class="copy-btn" onclick="copyText('emailBox')">Kopijuoti</button>
+        </div>
+      </div>
+      <div id="tabCall" style="display:none">
+        <div style="position:relative">
+          <div class="text-box" id="callBox"></div>
+          <button class="copy-btn" onclick="copyText('callBox')">Kopijuoti</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" id="contactedBtn" onclick="toggleContacted()">✓ Pažymėti kaip susisiekta</button>
+        <a id="emailLink" href="#" class="btn btn-primary btn-sm" target="_blank">📧 Atidaryti el. paštą</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────
+let currentPage = 0;
+const PAGE_SIZE = 50;
+let currentLeadId = null;
+let pollInterval = null;
+let currentRunId = null;
+let debounceTimer = null;
+let allDates = [];
+let allCities = [];
+let allIndustries = [];
+
+// ── Init ──────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('lt-LT', {weekday:'short',day:'numeric',month:'long'});
+  await loadConfig();
+  loadStats();
+  loadRecentLeads();
+  checkRunning();
+  setInterval(checkRunning, 10000);
+});
+
+async function loadConfig() {
+  const r = await fetch('/api/config');
+  const cfg = await r.json();
+
+  // Populate city selects
+  ['filterCity','runCity'].forEach(id => {
+    const sel = document.getElementById(id);
+    cfg.cities.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+      sel.appendChild(o);
+    });
+  });
+  allCities = cfg.cities;
+
+  // Populate industry selects
+  ['filterIndustry','runIndustry'].forEach(id => {
+    const sel = document.getElementById(id);
+    cfg.industries_full.forEach(i => {
+      const o = document.createElement('option');
+      o.value = i.query; o.textContent = i.lt;
+      sel.appendChild(o);
+    });
+  });
+  allIndustries = cfg.industries_full;
+
+  // Load dates for filter
+  const stats = await fetch('/api/stats').then(r => r.json());
+  allDates = stats.dates || [];
+  const dateSel = document.getElementById('filterDate');
+  allDates.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    dateSel.appendChild(o);
+  });
+}
+
+// ── Pages ─────────────────────────────────────────────
+const pageTitles = { dashboard:'Dashboard', leads:'Leadai', run:'Paleisti paiešką', history:'Istorija' };
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item')[['dashboard','leads','run','history'].indexOf(name)]?.classList.add('active');
+  document.getElementById('pageTitle').textContent = pageTitles[name];
+  if (name === 'leads') { loadLeads(); }
+  if (name === 'history') { loadHistory(); }
+  if (name === 'dashboard') { loadStats(); }
+}
+
+// ── Stats / Dashboard ─────────────────────────────────
+async function loadStats() {
+  const today = new Date().toISOString().slice(0,10);
+  const [all, todayStats] = await Promise.all([
+    fetch('/api/stats').then(r=>r.json()),
+    fetch('/api/stats?date='+today).then(r=>r.json()),
+  ]);
+
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = `
+    ${statCard('Iš viso leadų','accent',all.total,'','📊')}
+    ${statCard('Šiandien','blue',todayStats.total,'','📅')}
+    ${statCard('Nėra svetainės','red',all.no_site,Math.round(all.no_site/Math.max(all.total,1)*100)+'%','❌')}
+    ${statCard('Sena svetainė','yellow',all.old_site,Math.round(all.old_site/Math.max(all.total,1)*100)+'%','⚠️')}
+    ${statCard('Moderni svetainė','green',all.modern,Math.round(all.modern/Math.max(all.total,1)*100)+'%','✅')}
+    ${statCard('Turi el. paštą','blue',all.has_email,Math.round(all.has_email/Math.max(all.total,1)*100)+'%','📧')}
+    ${statCard('Susisiekta','green',all.contacted,'','📞')}
+  `;
+
+  // Chart
+  renderChart(all.by_day || []);
+
+  // Cities
+  const cities = document.getElementById('cityBreakdown');
+  cities.innerHTML = (all.cities||[]).slice(0,8).map(c => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="min-width:80px;font-size:12px;text-transform:capitalize">${c.city}</span>
+      <div style="flex:1;height:6px;background:var(--border);border-radius:4px;overflow:hidden">
+        <div style="width:${Math.round(c.count/Math.max(all.total,1)*100)}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px"></div>
+      </div>
+      <span style="font-size:12px;color:var(--muted)">${c.count}</span>
+    </div>
+  `).join('');
+}
+
+function statCard(label, color, value, sub, icon) {
+  return `<div class="stat-card ${color}">
+    <div class="stat-label">${icon} ${label}</div>
+    <div class="stat-value">${value}</div>
+    ${sub ? `<div class="stat-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
+function renderChart(data) {
+  const wrap = document.getElementById('chart14');
+  if (!data.length) { wrap.innerHTML = '<span class="text-muted text-sm">Nav duomenų</span>'; return; }
+  const max = Math.max(...data.map(d=>d.count), 1);
+  wrap.innerHTML = data.reverse().map(d => {
+    const pct = Math.round(d.count/max*100);
+    const label = d.date.slice(5); // MM-DD
+    return `<div class="chart-bar-col">
+      <div style="flex:1;display:flex;align-items:flex-end;width:100%">
+        <div class="chart-bar-fill" style="height:${pct}%" title="${d.date}: ${d.count} leadų"></div>
+      </div>
+      <div class="chart-bar-label">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Recent leads (dashboard) ──────────────────────────
+async function loadRecentLeads() {
+  const today = new Date().toISOString().slice(0,10);
+  const r = await fetch(`/api/leads?date=${today}&limit=10`);
+  const leads = await r.json();
+  const tbody = document.getElementById('recentLeadsBody');
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--muted)">Šiandien dar nėra leadų. <a href="#" onclick="showPage(\'run\')" style="color:var(--accent)">Paleisk paiešką →</a></td></tr>';
+    return;
+  }
+  tbody.innerHTML = leads.map(l => leadRow(l)).join('');
+}
+
+// ── Leads page ────────────────────────────────────────
+function debounceLoadLeads() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(loadLeads, 350);
+}
+
+async function loadLeads() {
+  const search   = document.getElementById('searchInput').value;
+  const date     = document.getElementById('filterDate').value;
+  const city     = document.getElementById('filterCity').value;
+  const status   = document.getElementById('filterStatus').value;
+  const industry = document.getElementById('filterIndustry').value;
+
+  const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE });
+  if (search) params.set('search', search);
+  if (date)   params.set('date', date);
+  if (city)   params.set('city', city);
+  if (status) params.set('status', status);
+  if (industry) params.set('industry', industry);
+
+  const tbody = document.getElementById('leadsBody');
+  tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--muted)">Kraunama...</td></tr>';
+
+  const leads = await fetch('/api/leads?' + params).then(r=>r.json());
+
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted)">Nėra leadų su šiais filtrais</td></tr>';
+    document.getElementById('leadsCount').textContent = '0 leadų';
+    return;
+  }
+
+  tbody.innerHTML = leads.map((l,i) => leadRow(l, true, currentPage*PAGE_SIZE+i+1)).join('');
+  document.getElementById('leadsCount').textContent = leads.length + ' leadų';
+  document.getElementById('prevPage').disabled = currentPage === 0;
+  document.getElementById('nextPage').disabled = leads.length < PAGE_SIZE;
+  document.getElementById('pageInfo').textContent = `Puslapis ${currentPage+1}`;
+}
+
+function changePage(dir) {
+  currentPage = Math.max(0, currentPage + dir);
+  loadLeads();
+}
+
+function leadRow(l, numbered=false, n=0) {
+  const status = statusBadge(l.website_status);
+  return `<tr class="clickable" onclick="openLead(${l.id})">
+    ${numbered ? `<td class="text-muted">${n}</td>` : ''}
+    <td>
+      <div style="font-weight:600;font-size:13px">${esc(l.company_name)}</div>
+      ${l.vadovas ? `<div class="text-muted text-sm">${esc(l.vadovas)}</div>` : ''}
+      ${l.contacted ? '<span class="badge badge-green" style="font-size:10px;margin-top:2px">susisiekta</span>' : ''}
+    </td>
+    <td class="text-muted text-sm">${esc(l.industry)}</td>
+    <td class="text-muted text-sm" style="text-transform:capitalize">${esc(l.city)}</td>
+    <td>${l.phone ? `<a href="tel:${l.phone}" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation()">${esc(l.phone)}</a>` : '<span class="text-muted">—</span>'}</td>
+    <td>${l.email ? `<a href="mailto:${l.email}" style="color:var(--accent);text-decoration:none;font-size:12px" onclick="event.stopPropagation()">${esc(l.email)}</a>` : '<span class="text-muted">—</span>'}</td>
+    <td>${status}</td>
+    <td class="text-sm text-muted" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.recommended_services)}</td>
+    ${numbered ? `<td onclick="event.stopPropagation()">
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openLead(${l.id})">👁</button>
+        ${l.email ? `<a href="mailto:${l.email}?subject=${encodeURIComponent(emailSubject(l.email_draft))}&body=${encodeURIComponent(emailBody(l.email_draft))}" class="btn btn-primary btn-sm" title="Siųsti el. laišką">📧</a>` : ''}
+      </div>
+    </td>` : ''}
+  </tr>`;
+}
+
+function statusBadge(s) {
+  const map = { none: ['status-none','❌ Nėra svetainės'], old: ['status-old','⚠️ Sena'], modern: ['status-modern','✅ Moderni'] };
+  const [cls, txt] = map[s] || ['status-none','—'];
+  return `<span class="status-dot ${cls}">${txt}</span>`;
+}
+
+function emailSubject(draft) {
+  if (!draft) return '';
+  const m = draft.match(/^Tema:\s*(.+)$/m);
+  return m ? m[1].trim() : '';
+}
+function emailBody(draft) {
+  if (!draft) return '';
+  const lines = draft.split('\n');
+  const bodyStart = lines.findIndex(l => l.startsWith('Tema:')) + 1;
+  return lines.slice(bodyStart).join('\n').trim();
+}
+
+// ── Lead Modal ────────────────────────────────────────
+async function openLead(id) {
+  currentLeadId = id;
+  const l = await fetch('/api/leads/'+id).then(r=>r.json());
+
+  document.getElementById('modalCompany').textContent = l.company_name;
+  document.getElementById('modalIndustry').textContent = l.industry + (l.city ? ' · ' + l.city : '');
+
+  document.getElementById('modalInfo').innerHTML = `
+    ${infoItem('Vadovas', l.vadovas || '—')}
+    ${infoItem('Telefonas', l.phone ? `<a href="tel:${l.phone}" style="color:var(--accent)">${l.phone}</a>` : '—')}
+    ${infoItem('El. paštas', l.email ? `<a href="mailto:${l.email}" style="color:var(--accent)">${l.email}</a>` : '—')}
+    ${infoItem('Svetainė', l.website ? `<a href="${l.website}" target="_blank" style="color:var(--accent);word-break:break-all">${l.website}</a>` : '—')}
+    ${infoItem('Svetainės statusas', statusBadge(l.website_status))}
+    ${infoItem('Siūlomos paslaugos', l.recommended_services || '—')}
+    ${infoItem('Adresas', l.address || '—')}
+    ${infoItem('Pastabos', l.notes || '—')}
+  `;
+
+  document.getElementById('emailBox').textContent = l.email_draft || '(Laiškas nebuvo sugeneruotas)';
+  document.getElementById('callBox').textContent = l.cold_call_script || '—';
+
+  const btn = document.getElementById('contactedBtn');
+  btn.textContent = l.contacted ? '✓ Susisiekta' : '○ Pažymėti kaip susisiekta';
+  btn.className = 'btn btn-sm ' + (l.contacted ? 'badge-green btn-ghost' : 'btn-ghost');
+
+  document.getElementById('emailLink').href = l.email
+    ? `mailto:${l.email}?subject=${encodeURIComponent(emailSubject(l.email_draft))}&body=${encodeURIComponent(emailBody(l.email_draft))}`
+    : '#';
+
+  switchTab('email');
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('open');
+    currentLeadId = null;
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['email','call'][i]===tab));
+  document.getElementById('tabEmail').style.display = tab==='email'?'block':'none';
+  document.getElementById('tabCall').style.display  = tab==='call' ?'block':'none';
+}
+
+async function toggleContacted() {
+  if (!currentLeadId) return;
+  const l = await fetch('/api/leads/'+currentLeadId).then(r=>r.json());
+  await fetch(`/api/leads/${currentLeadId}/contacted?contacted=${!l.contacted}`, {method:'PATCH'});
+  openLead(currentLeadId);
+}
+
+function infoItem(label, val) {
+  return `<div class="info-item"><label>${label}</label><span>${val}</span></div>`;
+}
+
+function copyText(boxId) {
+  const text = document.getElementById(boxId).textContent;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector(`#${boxId} + .copy-btn`) || document.querySelector(`.copy-btn`);
+  const orig = btn?.textContent;
+  if (btn) { btn.textContent = '✓ Nukopijuota'; setTimeout(() => btn.textContent = orig, 1500); }
+}
+
+// ── Run ───────────────────────────────────────────────
+async function startRun() {
+  const btn = document.getElementById('runBtn');
+  const log = document.getElementById('logBox');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Vyksta...';
+  log.textContent = '';
+
+  const body = {
+    city: document.getElementById('runCity').value,
+    industry: document.getElementById('runIndustry').value,
+    limit: parseInt(document.getElementById('runLimit').value) || 20,
+    generate_emails: document.getElementById('runEmails').checked,
+  };
+
+  const r = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const data = await r.json();
+
+  if (data.error) {
+    appendLog('⚠️ ' + data.error, 'warn');
+    btn.disabled = false; btn.innerHTML = '⚡ Paleisti paiešką';
+    return;
+  }
+
+  currentRunId = data.run_id;
+  appendLog('✅ Paieška paleista (ID: ' + data.run_id + ')');
+  document.getElementById('runBadge').style.display = '';
+  pollRunLog(data.run_id);
+}
+
+async function pollRunLog(runId) {
+  let lastLen = 0;
+  const btn = document.getElementById('runBtn');
+
+  const check = async () => {
+    const r = await fetch('/api/run/' + runId).then(d=>d.json());
+    const log = r.log || '';
+    if (log.length > lastLen) {
+      const newText = log.slice(lastLen);
+      lastLen = log.length;
+      newText.split('\n').forEach(line => {
+        if (line.trim()) appendLog(line);
+      });
+    }
+    if (r.status === 'running') {
+      setTimeout(check, 2000);
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '⚡ Paleisti paiešką';
+      document.getElementById('runBadge').style.display = 'none';
+      appendLog(r.status === 'completed' ? '✅ Paieška baigta!' : '❌ Klaida!', r.status==='completed'?'ok':'err');
+      loadRecentLeads();
+      loadStats();
+    }
+  };
+  check();
+}
+
+function appendLog(line, type='') {
+  const box = document.getElementById('logBox');
+  const div = document.createElement('div');
+  if (type === 'ok') div.className = 'log-ok';
+  else if (type === 'warn') div.className = 'log-warn';
+  else if (type === 'err') div.className = 'log-err';
+  div.textContent = line;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() { document.getElementById('logBox').innerHTML = ''; }
+
+async function checkRunning() {
+  const runs = await fetch('/api/runs').then(r=>r.json());
+  const running = runs.find(r=>r.status==='running');
+  document.getElementById('runBadge').style.display = running ? '' : 'none';
+  if (running && !currentRunId) {
+    currentRunId = running.id;
+  }
+}
+
+// ── History ───────────────────────────────────────────
+async function loadHistory() {
+  const runs = await fetch('/api/runs').then(r=>r.json());
+  const tbody = document.getElementById('historyBody');
+  if (!runs.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--muted)">Nėra istorijos</td></tr>';
+    return;
+  }
+  tbody.innerHTML = runs.map(r => {
+    const statusCls = r.status==='completed' ? 'badge-green' : r.status==='running' ? 'badge-blue' : 'badge-red';
+    const statusTxt = r.status==='completed' ? '✅ Baigta' : r.status==='running' ? '⏳ Vyksta' : '❌ Klaida';
+    const started = r.started_at ? new Date(r.started_at).toLocaleString('lt-LT') : '—';
+    return `<tr>
+      <td>${r.run_date}</td>
+      <td class="text-muted" style="text-transform:capitalize">${r.city || 'auto'}</td>
+      <td class="text-muted">${r.industry || 'auto'}</td>
+      <td><span class="badge ${statusCls}">${statusTxt}</span></td>
+      <td><strong>${r.leads_found}</strong></td>
+      <td class="text-muted text-sm">${started}</td>
+      <td>
+        <a href="/api/download/${r.run_date}" class="btn btn-ghost btn-sm" title="Atsisiųsti Excel">📥 Excel</a>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Utils ─────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+leads.db
+output/leads/*.xlsx
+output/leads/*.log
+*.egg-info/
+.DS_Store
