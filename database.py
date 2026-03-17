@@ -9,7 +9,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leads.db")
+_DEFAULT_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leads.db")
+DB_PATH = os.getenv("DB_PATH", _DEFAULT_DB)
 
 
 @contextmanager
