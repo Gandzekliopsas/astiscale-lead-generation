@@ -5,9 +5,13 @@ Deploy on Railway: web: uvicorn app:app --host 0.0.0.0 --port $PORT
 import io
 import logging
 import os
+import smtplib
+import ssl
 import sys
 import threading
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
@@ -20,7 +24,11 @@ from pydantic import BaseModel
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import database as db
-from config import CITIES, INDUSTRIES, OUTPUT_DIR
+from config import (
+    CITIES, INDUSTRIES, OUTPUT_DIR,
+    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD,
+    AGENCY_NAME, AGENT_NAME, SERVICE_TARGETS,
+)
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="AstiScale Lead Generation Dashboard")
@@ -119,13 +127,15 @@ def leads(
     city: str = Query(None),
     industry: str = Query(None),
     status: str = Query(None),
+    service_target: str = Query(None),
     search: str = Query(None),
     limit: int = Query(100),
     offset: int = Query(0),
 ):
     return db.get_leads(
         run_date=date, city=city, industry=industry,
-        status=status, search=search, limit=limit, offset=offset
+        status=status, service_target=service_target,
+        search=search, limit=limit, offset=offset
     )
 
 
@@ -143,6 +153,61 @@ def mark_contacted(lead_id: int, contacted: bool = True, notes: str = ""):
     return {"ok": True}
 
 
+# ── API: Send email ───────────────────────────────────────────────────────────
+
+@app.post("/api/leads/{lead_id}/send-email")
+def send_lead_email(lead_id: int):
+    """Send the email draft to the lead via Hostinger SMTP (port 465 SSL)."""
+    lead = db.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(404, "Lead not found")
+
+    if not lead.get("email"):
+        raise HTTPException(400, "Šis lead'as neturi el. pašto adreso")
+
+    if not lead.get("email_draft"):
+        raise HTTPException(400, "El. laiško juodraštis neegzistuoja")
+
+    if not SMTP_PASSWORD:
+        raise HTTPException(500, "SMTP slaptažodis nenurodytas (Railway kintamieji)")
+
+    # Parse subject and body from the draft
+    draft = lead["email_draft"]
+    subject = f"{AGENCY_NAME} — {lead['company_name']}"
+    body = draft
+
+    lines = draft.split("\n")
+    if lines and lines[0].startswith("Tema:"):
+        subject = lines[0].replace("Tema:", "").strip()
+        body = "\n".join(lines[1:]).strip()
+
+    # Build MIME message
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = f"{AGENT_NAME} | {AGENCY_NAME} <{SMTP_USER}>"
+    msg["To"]      = lead["email"]
+
+    # Plain text part
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+
+    # Send via SSL (port 465)
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=15) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, lead["email"], msg.as_string())
+
+        db.mark_email_sent(lead_id)
+        return {"ok": True, "message": f"El. laiškas išsiųstas į {lead['email']}"}
+
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(500, "SMTP autentifikacijos klaida — patikrinkite SMTP_USER ir SMTP_PASSWORD")
+    except smtplib.SMTPException as e:
+        raise HTTPException(500, f"SMTP klaida: {str(e)}")
+    except Exception as e:
+        raise HTTPException(500, f"Klaida siunčiant el. laišką: {str(e)}")
+
+
 # ── API: Config ───────────────────────────────────────────────────────────────
 
 @app.get("/api/config")
@@ -151,6 +216,7 @@ def config():
         "cities": CITIES,
         "industries": [i["query"] for i in INDUSTRIES],
         "industries_full": INDUSTRIES,
+        "service_targets": SERVICE_TARGETS,
     }
 
 
@@ -159,6 +225,7 @@ def config():
 class RunRequest(BaseModel):
     city: str = ""
     industry: str = ""
+    service_target: str = ""   # "svetaine" | "meta_ads" | "chatbot" | "verslo_valdymas"
     limit: int = 20
     generate_emails: bool = True
 
@@ -167,13 +234,12 @@ class RunRequest(BaseModel):
 def start_run(req: RunRequest, background_tasks: BackgroundTasks):
     global _active_run_id
     with _run_lock:
-        # Check if already running
         if _active_run_id is not None:
             run = db.get_run(_active_run_id)
             if run and run["status"] == "running":
                 return {"error": "A run is already in progress", "run_id": _active_run_id}
 
-        run_id = db.create_run(req.city, req.industry)
+        run_id = db.create_run(req.city, req.industry, req.service_target)
         _active_run_id = run_id
 
     background_tasks.add_task(_do_run, run_id, req)
@@ -218,110 +284,149 @@ def _do_run(run_id: int, req: RunRequest):
 
     try:
         log(f"[{datetime.now().strftime('%H:%M:%S')}] Starting lead generation...")
-        log(f"  City: {req.city or 'auto'} | Industry: {req.industry or 'auto'} | Limit: {req.limit}")
 
-        # Patch main.run to capture logs and save leads to DB
         from sources.osm_search import find_businesses as find_businesses_osm
         from sources.website_analyzer import analyze_website
         from sources.contact_finder import find_contacts
         from processors.service_recommender import recommend
         from processors.email_generator import generate_email
         from sources.rekvizitai import BusinessLead
-        from config import CITIES, INDUSTRIES, LEADS_PER_RUN, ANTHROPIC_API_KEY
+        from config import LEADS_PER_RUN, ANTHROPIC_API_KEY
         import random
 
         date_str = datetime.now().strftime("%Y-%m-%d")
+        service_target = req.service_target
+
+        # ── Determine which industries to search ──────────────────────────────
+        if service_target and service_target in SERVICE_TARGETS:
+            tgt = SERVICE_TARGETS[service_target]
+            tgt_label = tgt["label"]
+            industry_queries = tgt["industries"]
+            website_filter   = tgt["website_filter"]
+            log(f"  Paslauga: {tgt_label}")
+            log(f"  Industrijos: {', '.join(industry_queries)}")
+
+            # Build industry dicts from config INDUSTRIES or create inline
+            industries = []
+            for q in industry_queries:
+                match = next((i for i in INDUSTRIES if i["query"] == q), None)
+                if match:
+                    industries.append(match)
+                else:
+                    industries.append({"query": q, "lt": q.capitalize(), "en": q})
+        else:
+            # No service_target — classic mode: random industries
+            service_target = ""
+            website_filter = ["none", "old", "modern", "unreachable"]
+            if req.industry:
+                industries = [next((i for i in INDUSTRIES if i["query"] == req.industry),
+                                   {"query": req.industry, "lt": req.industry, "en": req.industry})]
+            else:
+                random.shuffle(INDUSTRIES)
+                industries = INDUSTRIES[:6]
 
         cities = [req.city] if req.city else random.sample(CITIES, min(3, len(CITIES)))
-        if req.industry:
-            industries = [next((i for i in INDUSTRIES if i["query"] == req.industry),
-                               {"query": req.industry, "lt": req.industry, "en": req.industry})]
-        else:
-            random.shuffle(INDUSTRIES)
-            industries = INDUSTRIES[:6]
+        log(f"  Miestai: {cities}")
+        log(f"  Industrijos: {[i['lt'] for i in industries]}")
+        if website_filter != ["none", "old", "modern", "unreachable"]:
+            log(f"  Svetainės filtras: {website_filter}")
 
-        log(f"  Cities: {cities}")
-        log(f"  Industries: {[i['lt'] for i in industries]}")
-
+        # ── Search ────────────────────────────────────────────────────────────
         raw_leads = []
         seen = set()
 
         for ind in industries:
             for cty in cities:
-                if len(raw_leads) >= req.limit * 2:
+                if len(raw_leads) >= req.limit * 3:
                     break
-                log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Searching {ind['lt']} in {cty.capitalize()}...")
-                new = find_businesses_osm(ind["query"], cty, max_results=15)
+                log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Ieškoma: {ind['lt']} / {cty.capitalize()}...")
+                new = find_businesses_osm(ind["query"], cty, max_results=20)
                 for lead in new:
                     key = lead.company_name.lower().strip()
                     if key and key not in seen:
                         seen.add(key)
                         lead.industry = ind["lt"]
                         raw_leads.append(lead)
-                log(f"  Found {len(new)} leads")
-            if len(raw_leads) >= req.limit * 2:
+                log(f"  Rasta: {len(new)}")
+            if len(raw_leads) >= req.limit * 3:
                 break
 
-        # Prioritize
+        # Prioritize by contact info
         def priority(l):
             return (3 if l.email else 0) + (2 if l.phone else 0)
         raw_leads.sort(key=priority, reverse=True)
-        raw_leads = raw_leads[:req.limit]
 
-        log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Processing {len(raw_leads)} leads...")
+        # ── Process ───────────────────────────────────────────────────────────
+        log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Apdorojama {len(raw_leads)} potencialių...")
 
         processed = []
-        for i, lead in enumerate(raw_leads, 1):
-            log(f"\n[{i}/{len(raw_leads)}] {lead.company_name}")
+        skipped   = 0
+
+        for lead in raw_leads:
+            if len(processed) >= req.limit:
+                break
+
             try:
-                # Website
-                if lead.website:
-                    wa = analyze_website(lead.website)
+                # Website analysis
+                if lead.website and lead.website.strip():
+                    wa = analyze_website(lead.website.strip())
                     lead.website_status = wa["status"]
-                    lead.website_year = wa.get("year")
-                    lead.notes = wa.get("notes", "")
-                    log(f"  Website: {wa['status'].upper()}")
+                    lead.website_year   = wa.get("year")
+                    lead.notes          = wa.get("notes", "")
                 else:
                     lead.website_status = "none"
-                    lead.notes = "Nėra svetainės"
-                    log(f"  Website: NONE")
+                    lead.notes          = "Nėra svetainės"
 
-                # Contacts from website
+                # ── Apply service filter ───────────────────────────────────────
+                if lead.website_status not in website_filter:
+                    skipped += 1
+                    continue
+
+                log(f"\n[{len(processed)+1}] {lead.company_name} ({lead.website_status.upper()})")
+
+                # Contact scraping from website
                 if lead.website and (not lead.email or not lead.phone):
-                    contacts = find_contacts(lead.website)
-                    if not lead.email and contacts.get("email"):
-                        lead.email = contacts["email"]
-                    if not lead.phone and contacts.get("phone"):
-                        lead.phone = contacts["phone"]
+                    try:
+                        contacts = find_contacts(lead.website)
+                        if not lead.email and contacts.get("email"):
+                            lead.email = contacts["email"]
+                        if not lead.phone and contacts.get("phone"):
+                            lead.phone = contacts["phone"]
+                    except Exception:
+                        pass
 
                 # Services
-                lead.recommended_services = recommend(lead.website_status, lead.industry)
+                lead.service_target       = service_target
+                lead.recommended_services = recommend(lead.website_status, lead.industry, service_target)
 
-                # Email
+                # Email generation
                 if req.generate_emails and ANTHROPIC_API_KEY:
-                    lead.email_draft = generate_email(lead, lead.recommended_services)
-                    log(f"  Email: generated")
+                    lead.email_draft = generate_email(lead, lead.recommended_services, service_target)
+                    log(f"  El. laiškas: sugeneruotas")
 
                 # Save to DB
-                db.insert_lead(date_str, lead)
+                db.insert_lead(date_str, lead, service_target)
                 processed.append(lead)
 
             except Exception as e:
-                log(f"  ERROR: {e}")
+                log(f"  KLAIDA: {e}")
 
-        # Also save Excel
+        if skipped:
+            log(f"\n  Praleista (neatitiko filtro): {skipped}")
+
+        # Save Excel
         try:
             from output.excel_report import save_excel
             save_excel(processed, date_str)
-            log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Excel saved.")
+            log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Excel išsaugotas.")
         except Exception as e:
-            log(f"Excel save error: {e}")
+            log(f"Excel klaida: {e}")
 
-        log(f"\n✅ Done! {len(processed)} leads saved.")
+        log(f"\n✅ Baigta! {len(processed)} leadų išsaugota.")
         db.finish_run(run_id, len(processed), "completed")
 
     except Exception as e:
-        db.append_run_log(run_id, f"\n❌ Fatal error: {e}")
+        db.append_run_log(run_id, f"\n❌ Kritinė klaida: {e}")
         db.finish_run(run_id, 0, "failed")
     finally:
         with _run_lock:

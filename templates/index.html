@@ -277,6 +277,41 @@ select.form-control { cursor: pointer; }
 .fw-600 { font-weight: 600; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Service cards ───────────────────────────────────── */
+.service-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.service-card {
+  background: var(--card2); border: 2px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  cursor: pointer; transition: all .15s;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.service-card:hover { border-color: var(--accent); background: rgba(102,126,234,.08); }
+.service-card.selected { border-color: var(--accent); background: rgba(102,126,234,.15); }
+.service-card-icon { font-size: 22px; margin-bottom: 4px; }
+.service-card-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.service-card-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.service-card.selected .service-card-title { color: var(--accent); }
+
+/* ── Status unreachable ──────────────────────────────── */
+.status-unreachable { background: rgba(156,163,175,.15); color: #9ca3af; }
+
+/* ── Toast ───────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 999;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 20px; font-size: 13px;
+  box-shadow: var(--shadow); transform: translateY(80px);
+  transition: transform .25s; max-width: 320px;
+}
+.toast.show { transform: translateY(0); }
+.toast.toast-ok { border-color: var(--green); color: var(--green); }
+.toast.toast-err { border-color: var(--red); color: var(--red); }
+
+/* ── Send email btn state ────────────────────────────── */
+.btn-send { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
+.btn-send:hover { background: rgba(74,222,128,.25); }
+.btn-send:disabled { opacity: .5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -303,7 +338,7 @@ select.form-control { cursor: pointer; }
     </div>
   </nav>
   <div class="sidebar-footer">
-    astiscaleautomation@gmail.com
+    info@astiscale.com
   </div>
 </aside>
 
@@ -364,6 +399,14 @@ select.form-control { cursor: pointer; }
           <option value="none">❌ Nėra svetainės</option>
           <option value="old">⚠️ Sena svetainė</option>
           <option value="modern">✅ Moderni</option>
+          <option value="unreachable">🔌 Nepasiekiama</option>
+        </select>
+        <select class="filter-input" id="filterService" onchange="loadLeads()">
+          <option value="">Visos paslaugos</option>
+          <option value="svetaine">🌐 Svetainė</option>
+          <option value="meta_ads">📣 Meta reklamos</option>
+          <option value="chatbot">🤖 AI Chatbot</option>
+          <option value="verslo_valdymas">⚙️ Verslo valdymas</option>
         </select>
         <select class="filter-input" id="filterIndustry" onchange="loadLeads()">
           <option value="">Visos industrijos</option>
@@ -403,18 +446,38 @@ select.form-control { cursor: pointer; }
       <div class="run-grid">
         <div>
           <div class="card">
-            <div class="section-title" style="margin-bottom:20px">⚡ Nauja paieška</div>
+            <div class="section-title" style="margin-bottom:16px">⚡ Nauja paieška</div>
+
+            <div class="form-group">
+              <label>Paslauga — ką norite parduoti?</label>
+              <div class="service-cards" id="serviceCards">
+                <div class="service-card selected" data-service="svetaine" onclick="selectService('svetaine')">
+                  <div class="service-card-icon">🌐</div>
+                  <div class="service-card-title">Svetainė / El. parduotuvė</div>
+                  <div class="service-card-desc">Įmonės be svetainės arba su sena, pasenusia svetaine</div>
+                </div>
+                <div class="service-card" data-service="meta_ads" onclick="selectService('meta_ads')">
+                  <div class="service-card-icon">📣</div>
+                  <div class="service-card-title">Meta reklamos</div>
+                  <div class="service-card-desc">Įmonės su svetaine, kurioms reikia Facebook/Instagram reklamos</div>
+                </div>
+                <div class="service-card" data-service="chatbot" onclick="selectService('chatbot')">
+                  <div class="service-card-icon">🤖</div>
+                  <div class="service-card-title">AI Chatbot</div>
+                  <div class="service-card-desc">Įmonės su svetaine, kurioms reikia 24/7 automatinio aptarnavimo</div>
+                </div>
+                <div class="service-card" data-service="verslo_valdymas" onclick="selectService('verslo_valdymas')">
+                  <div class="service-card-icon">⚙️</div>
+                  <div class="service-card-title">Verslo valdymo sistemos</div>
+                  <div class="service-card-desc">Transporto, logistikos, gamybos ir sandėliavimo įmonės</div>
+                </div>
+              </div>
+            </div>
 
             <div class="form-group">
               <label>Miestas</label>
               <select class="form-control" id="runCity">
                 <option value="">Automatiškai (keli miestai)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Industrija</label>
-              <select class="form-control" id="runIndustry">
-                <option value="">Automatiškai (kelios industrijos)</option>
               </select>
             </div>
             <div class="form-group">
@@ -443,7 +506,7 @@ select.form-control { cursor: pointer; }
               <span class="section-title">Veiklos žurnalas</span>
               <button class="btn btn-ghost btn-sm" onclick="clearLog()">Išvalyti</button>
             </div>
-            <div class="log-box" id="logBox">Spausk "Paleisti paiešką" kad pradėtum...\n</div>
+            <div class="log-box" id="logBox">Pasirink paslaugą ir spausk "Paleisti paiešką"...</div>
           </div>
         </div>
       </div>
@@ -458,8 +521,8 @@ select.form-control { cursor: pointer; }
             <thead>
               <tr>
                 <th>Data</th>
+                <th>Paslauga</th>
                 <th>Miestas</th>
-                <th>Industrija</th>
                 <th>Statusas</th>
                 <th>Rasti leadai</th>
                 <th>Pradėta</th>
@@ -509,25 +572,31 @@ select.form-control { cursor: pointer; }
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+      <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="contactedBtn" onclick="toggleContacted()">✓ Pažymėti kaip susisiekta</button>
-        <a id="emailLink" href="#" class="btn btn-primary btn-sm" target="_blank">📧 Atidaryti el. paštą</a>
+        <button class="btn btn-send btn-sm" id="sendEmailBtn" onclick="sendEmail()">📤 Siųsti el. laišką</button>
+        <a id="emailLink" href="#" class="btn btn-ghost btn-sm" target="_blank">📧 Atidaryti el. pašto programą</a>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
 
 <script>
 // ── State ─────────────────────────────────────────────
 let currentPage = 0;
 const PAGE_SIZE = 50;
 let currentLeadId = null;
+let currentLeadData = null;
 let pollInterval = null;
 let currentRunId = null;
 let debounceTimer = null;
 let allDates = [];
 let allCities = [];
 let allIndustries = [];
+let selectedService = 'svetaine';
 
 // ── Init ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -546,6 +615,7 @@ async function loadConfig() {
   // Populate city selects
   ['filterCity','runCity'].forEach(id => {
     const sel = document.getElementById(id);
+    if (!sel) return;
     cfg.cities.forEach(c => {
       const o = document.createElement('option');
       o.value = c; o.textContent = c.charAt(0).toUpperCase() + c.slice(1);
@@ -554,15 +624,15 @@ async function loadConfig() {
   });
   allCities = cfg.cities;
 
-  // Populate industry selects
-  ['filterIndustry','runIndustry'].forEach(id => {
-    const sel = document.getElementById(id);
+  // Populate industry filter (not run form anymore — that uses service cards)
+  const indSel = document.getElementById('filterIndustry');
+  if (indSel) {
     cfg.industries_full.forEach(i => {
       const o = document.createElement('option');
       o.value = i.query; o.textContent = i.lt;
-      sel.appendChild(o);
+      indSel.appendChild(o);
     });
-  });
+  }
   allIndustries = cfg.industries_full;
 
   // Load dates for filter
@@ -573,6 +643,14 @@ async function loadConfig() {
     const o = document.createElement('option');
     o.value = d; o.textContent = d;
     dateSel.appendChild(o);
+  });
+}
+
+// ── Service card selection ─────────────────────────────
+function selectService(svc) {
+  selectedService = svc;
+  document.querySelectorAll('.service-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.service === svc);
   });
 }
 
@@ -672,13 +750,15 @@ async function loadLeads() {
   const date     = document.getElementById('filterDate').value;
   const city     = document.getElementById('filterCity').value;
   const status   = document.getElementById('filterStatus').value;
+  const service  = document.getElementById('filterService').value;
   const industry = document.getElementById('filterIndustry').value;
 
   const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE });
-  if (search) params.set('search', search);
-  if (date)   params.set('date', date);
-  if (city)   params.set('city', city);
-  if (status) params.set('status', status);
+  if (search)   params.set('search', search);
+  if (date)     params.set('date', date);
+  if (city)     params.set('city', city);
+  if (status)   params.set('status', status);
+  if (service)  params.set('service_target', service);
   if (industry) params.set('industry', industry);
 
   const tbody = document.getElementById('leadsBody');
@@ -712,6 +792,7 @@ function leadRow(l, numbered=false, n=0) {
       <div style="font-weight:600;font-size:13px">${esc(l.company_name)}</div>
       ${l.vadovas ? `<div class="text-muted text-sm">${esc(l.vadovas)}</div>` : ''}
       ${l.contacted ? '<span class="badge badge-green" style="font-size:10px;margin-top:2px">susisiekta</span>' : ''}
+      ${l.email_sent ? '<span class="badge badge-blue" style="font-size:10px;margin-top:2px">laiškas išsiųstas</span>' : ''}
     </td>
     <td class="text-muted text-sm">${esc(l.industry)}</td>
     <td class="text-muted text-sm" style="text-transform:capitalize">${esc(l.city)}</td>
@@ -729,8 +810,13 @@ function leadRow(l, numbered=false, n=0) {
 }
 
 function statusBadge(s) {
-  const map = { none: ['status-none','❌ Nėra svetainės'], old: ['status-old','⚠️ Sena'], modern: ['status-modern','✅ Moderni'] };
-  const [cls, txt] = map[s] || ['status-none','—'];
+  const map = {
+    none:        ['status-none',        '❌ Nėra svetainės'],
+    old:         ['status-old',         '⚠️ Sena'],
+    modern:      ['status-modern',      '✅ Moderni'],
+    unreachable: ['status-unreachable', '🔌 Nepasiekiama'],
+  };
+  const [cls, txt] = map[s] || ['status-none', '—'];
   return `<span class="status-dot ${cls}">${txt}</span>`;
 }
 
@@ -750,6 +836,7 @@ function emailBody(draft) {
 async function openLead(id) {
   currentLeadId = id;
   const l = await fetch('/api/leads/'+id).then(r=>r.json());
+  currentLeadData = l;
 
   document.getElementById('modalCompany').textContent = l.company_name;
   document.getElementById('modalIndustry').textContent = l.industry + (l.city ? ' · ' + l.city : '');
@@ -771,6 +858,21 @@ async function openLead(id) {
   const btn = document.getElementById('contactedBtn');
   btn.textContent = l.contacted ? '✓ Susisiekta' : '○ Pažymėti kaip susisiekta';
   btn.className = 'btn btn-sm ' + (l.contacted ? 'badge-green btn-ghost' : 'btn-ghost');
+
+  // Send email button
+  const sendBtn = document.getElementById('sendEmailBtn');
+  if (l.email && l.email_draft) {
+    sendBtn.style.display = '';
+    if (l.email_sent) {
+      sendBtn.textContent = '✅ Laiškas išsiųstas';
+      sendBtn.disabled = true;
+    } else {
+      sendBtn.textContent = '📤 Siųsti el. laišką';
+      sendBtn.disabled = false;
+    }
+  } else {
+    sendBtn.style.display = 'none';
+  }
 
   document.getElementById('emailLink').href = l.email
     ? `mailto:${l.email}?subject=${encodeURIComponent(emailSubject(l.email_draft))}&body=${encodeURIComponent(emailBody(l.email_draft))}`
@@ -822,7 +924,7 @@ async function startRun() {
 
   const body = {
     city: document.getElementById('runCity').value,
-    industry: document.getElementById('runIndustry').value,
+    service_target: selectedService,
     limit: parseInt(document.getElementById('runLimit').value) || 20,
     generate_emails: document.getElementById('runEmails').checked,
   };
@@ -892,6 +994,40 @@ async function checkRunning() {
   }
 }
 
+// ── Send real email ───────────────────────────────────
+async function sendEmail() {
+  if (!currentLeadId) return;
+  const btn = document.getElementById('sendEmailBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Siunčiama...';
+
+  try {
+    const r = await fetch(`/api/leads/${currentLeadId}/send-email`, { method: 'POST' });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      showToast('✅ ' + data.message, 'ok');
+      btn.textContent = '✅ Laiškas išsiųstas';
+      btn.disabled = true;
+      currentLeadData.email_sent = 1;
+    } else {
+      showToast('❌ ' + (data.detail || 'Nepavyko išsiųsti'), 'err');
+      btn.textContent = '📤 Siųsti el. laišką';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    showToast('❌ Tinklo klaida: ' + e.message, 'err');
+    btn.textContent = '📤 Siųsti el. laišką';
+    btn.disabled = false;
+  }
+}
+
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast toast-' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
 // ── History ───────────────────────────────────────────
 async function loadHistory() {
   const runs = await fetch('/api/runs').then(r=>r.json());
@@ -900,14 +1036,19 @@ async function loadHistory() {
     tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--muted)">Nėra istorijos</td></tr>';
     return;
   }
+  const svcLabels = {
+    svetaine: '🌐 Svetainė', meta_ads: '📣 Meta reklamos',
+    chatbot: '🤖 Chatbot', verslo_valdymas: '⚙️ Verslo valdymas',
+  };
   tbody.innerHTML = runs.map(r => {
     const statusCls = r.status==='completed' ? 'badge-green' : r.status==='running' ? 'badge-blue' : 'badge-red';
     const statusTxt = r.status==='completed' ? '✅ Baigta' : r.status==='running' ? '⏳ Vyksta' : '❌ Klaida';
-    const started = r.started_at ? new Date(r.started_at).toLocaleString('lt-LT') : '—';
+    const started   = r.started_at ? new Date(r.started_at).toLocaleString('lt-LT') : '—';
+    const svcLabel  = svcLabels[r.service_target] || (r.industry || 'auto');
     return `<tr>
       <td>${r.run_date}</td>
-      <td class="text-muted" style="text-transform:capitalize">${r.city || 'auto'}</td>
-      <td class="text-muted">${r.industry || 'auto'}</td>
+      <td class="text-sm">${svcLabel}</td>
+      <td class="text-muted" style="text-transform:capitalize">${r.city || 'visi'}</td>
       <td><span class="badge ${statusCls}">${statusTxt}</span></td>
       <td><strong>${r.leads_found}</strong></td>
       <td class="text-muted text-sm">${started}</td>

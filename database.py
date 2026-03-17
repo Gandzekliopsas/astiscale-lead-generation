@@ -28,7 +28,7 @@ def get_db():
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, and run migrations for new columns."""
     with get_db() as db:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS leads (
@@ -50,30 +50,54 @@ def init_db():
             notes                TEXT DEFAULT '',
             contacted            INTEGER DEFAULT 0,
             contact_notes        TEXT DEFAULT '',
+            service_target       TEXT DEFAULT '',
+            email_sent           INTEGER DEFAULT 0,
+            email_sent_at        TIMESTAMP,
             created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS runs (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            run_date     TEXT NOT NULL,
-            status       TEXT DEFAULT 'running',
-            city         TEXT DEFAULT '',
-            industry     TEXT DEFAULT '',
-            leads_found  INTEGER DEFAULT 0,
-            log          TEXT DEFAULT '',
-            started_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed_at TIMESTAMP
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_date       TEXT NOT NULL,
+            status         TEXT DEFAULT 'running',
+            city           TEXT DEFAULT '',
+            industry       TEXT DEFAULT '',
+            service_target TEXT DEFAULT '',
+            leads_found    INTEGER DEFAULT 0,
+            log            TEXT DEFAULT '',
+            started_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at   TIMESTAMP
         );
 
-        CREATE INDEX IF NOT EXISTS idx_leads_run_date ON leads(run_date);
-        CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(website_status);
-        CREATE INDEX IF NOT EXISTS idx_leads_city ON leads(city);
+        CREATE INDEX IF NOT EXISTS idx_leads_run_date    ON leads(run_date);
+        CREATE INDEX IF NOT EXISTS idx_leads_status      ON leads(website_status);
+        CREATE INDEX IF NOT EXISTS idx_leads_city        ON leads(city);
+        CREATE INDEX IF NOT EXISTS idx_leads_service     ON leads(service_target);
         """)
+
+    # ── Migrations: add columns if upgrading from old schema ──────────────────
+    _migrate()
+
+
+def _migrate():
+    """Add missing columns to existing tables without dropping data."""
+    migrations = [
+        ("leads",  "service_target",  "TEXT DEFAULT ''"),
+        ("leads",  "email_sent",      "INTEGER DEFAULT 0"),
+        ("leads",  "email_sent_at",   "TIMESTAMP"),
+        ("runs",   "service_target",  "TEXT DEFAULT ''"),
+    ]
+    with get_db() as db:
+        for table, col, col_def in migrations:
+            try:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}")
+            except Exception:
+                pass  # Column already exists — fine
 
 
 # ── Leads ─────────────────────────────────────────────────────────────────────
 
-def insert_lead(run_date: str, lead) -> int:
+def insert_lead(run_date: str, lead, service_target: str = "") -> int:
     """Insert a BusinessLead and return its id."""
     from processors.service_recommender import build_service_summary, cold_call_script
     services_str = build_service_summary(lead.recommended_services)
@@ -82,8 +106,8 @@ def insert_lead(run_date: str, lead) -> int:
         cur = db.execute("""
             INSERT INTO leads (run_date, company_name, vadovas, phone, email, website,
                 address, city, industry, website_status, website_year,
-                recommended_services, email_draft, cold_call_script, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                recommended_services, email_draft, cold_call_script, notes, service_target)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             run_date,
             lead.company_name,
@@ -100,6 +124,7 @@ def insert_lead(run_date: str, lead) -> int:
             lead.email_draft or '',
             call_script,
             lead.notes or '',
+            service_target or getattr(lead, 'service_target', '') or '',
         ))
         return cur.lastrowid
 
@@ -109,6 +134,7 @@ def get_leads(
     city: str = None,
     industry: str = None,
     status: str = None,
+    service_target: str = None,
     search: str = None,
     limit: int = 200,
     offset: int = 0,
@@ -124,6 +150,8 @@ def get_leads(
         filters.append("industry = ?"); params.append(industry)
     if status:
         filters.append("website_status = ?"); params.append(status)
+    if service_target:
+        filters.append("service_target = ?"); params.append(service_target)
     if search:
         filters.append("(company_name LIKE ? OR email LIKE ? OR phone LIKE ?)")
         params += [f"%{search}%"] * 3
@@ -153,42 +181,57 @@ def update_lead_contacted(lead_id: int, contacted: bool, notes: str = ""):
         )
 
 
+def mark_email_sent(lead_id: int):
+    with get_db() as db:
+        db.execute(
+            "UPDATE leads SET email_sent=1, email_sent_at=CURRENT_TIMESTAMP WHERE id=?",
+            (lead_id,)
+        )
+
+
 def get_stats(run_date: str = None) -> dict:
-    where = "WHERE run_date=?" if run_date else ""
+    where  = "WHERE run_date=?" if run_date else ""
+    and_or = "AND" if where else "WHERE"
     params = [run_date] if run_date else []
     with get_db() as db:
-        total   = db.execute(f"SELECT COUNT(*) FROM leads {where}", params).fetchone()[0]
-        no_site = db.execute(f"SELECT COUNT(*) FROM leads {where} {'AND' if where else 'WHERE'} website_status='none'", params).fetchone()[0]
-        old_site= db.execute(f"SELECT COUNT(*) FROM leads {where} {'AND' if where else 'WHERE'} website_status='old'", params).fetchone()[0]
-        modern  = db.execute(f"SELECT COUNT(*) FROM leads {where} {'AND' if where else 'WHERE'} website_status='modern'", params).fetchone()[0]
-        has_email=db.execute(f"SELECT COUNT(*) FROM leads {where} {'AND' if where else 'WHERE'} email != ''", params).fetchone()[0]
-        contacted=db.execute(f"SELECT COUNT(*) FROM leads {where} {'AND' if where else 'WHERE'} contacted=1", params).fetchone()[0]
-        dates   = db.execute("SELECT DISTINCT run_date FROM leads ORDER BY run_date DESC LIMIT 30").fetchall()
-        by_day  = db.execute("SELECT run_date, COUNT(*) as cnt FROM leads GROUP BY run_date ORDER BY run_date DESC LIMIT 14").fetchall()
-        cities  = db.execute(f"SELECT city, COUNT(*) as cnt FROM leads {where} GROUP BY city ORDER BY cnt DESC", params).fetchall()
+        total      = db.execute(f"SELECT COUNT(*) FROM leads {where}", params).fetchone()[0]
+        no_site    = db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} website_status='none'",    params).fetchone()[0]
+        old_site   = db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} website_status='old'",     params).fetchone()[0]
+        modern     = db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} website_status='modern'",  params).fetchone()[0]
+        unreachable= db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} website_status='unreachable'", params).fetchone()[0]
+        has_email  = db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} email != ''",              params).fetchone()[0]
+        contacted  = db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} contacted=1",              params).fetchone()[0]
+        email_sent = db.execute(f"SELECT COUNT(*) FROM leads {where} {and_or} email_sent=1",             params).fetchone()[0]
+        dates      = db.execute("SELECT DISTINCT run_date FROM leads ORDER BY run_date DESC LIMIT 30").fetchall()
+        by_day     = db.execute("SELECT run_date, COUNT(*) as cnt FROM leads GROUP BY run_date ORDER BY run_date DESC LIMIT 14").fetchall()
+        cities     = db.execute(f"SELECT city, COUNT(*) as cnt FROM leads {where} GROUP BY city ORDER BY cnt DESC", params).fetchall()
         industries = db.execute(f"SELECT industry, COUNT(*) as cnt FROM leads {where} GROUP BY industry ORDER BY cnt DESC", params).fetchall()
+        services   = db.execute(f"SELECT service_target, COUNT(*) as cnt FROM leads {where} GROUP BY service_target ORDER BY cnt DESC", params).fetchall()
     return {
-        "total": total,
-        "no_site": no_site,
-        "old_site": old_site,
-        "modern": modern,
-        "has_email": has_email,
-        "contacted": contacted,
-        "dates": [r[0] for r in dates],
-        "by_day": [{"date": r[0], "count": r[1]} for r in by_day],
-        "cities": [{"city": r[0], "count": r[1]} for r in cities],
-        "industries": [{"industry": r[0], "count": r[1]} for r in industries],
+        "total":       total,
+        "no_site":     no_site,
+        "old_site":    old_site,
+        "modern":      modern,
+        "unreachable": unreachable,
+        "has_email":   has_email,
+        "contacted":   contacted,
+        "email_sent":  email_sent,
+        "dates":       [r[0] for r in dates],
+        "by_day":      [{"date": r[0], "count": r[1]} for r in by_day],
+        "cities":      [{"city": r[0], "count": r[1]} for r in cities],
+        "industries":  [{"industry": r[0], "count": r[1]} for r in industries],
+        "services":    [{"service": r[0], "count": r[1]} for r in services],
     }
 
 
 # ── Runs ──────────────────────────────────────────────────────────────────────
 
-def create_run(city: str, industry: str) -> int:
+def create_run(city: str, industry: str, service_target: str = "") -> int:
     run_date = datetime.now().strftime("%Y-%m-%d")
     with get_db() as db:
         cur = db.execute(
-            "INSERT INTO runs (run_date, status, city, industry) VALUES (?,?,?,?)",
-            (run_date, "running", city, industry)
+            "INSERT INTO runs (run_date, status, city, industry, service_target) VALUES (?,?,?,?,?)",
+            (run_date, "running", city, industry, service_target)
         )
         return cur.lastrowid
 

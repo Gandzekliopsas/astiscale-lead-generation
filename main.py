@@ -83,8 +83,8 @@ def process_lead(lead: BusinessLead, generate_emails: bool = True) -> BusinessLe
 
     # 1. Analyze website
     logger.info(f"Analyzing website for: {lead.company_name}")
-    if lead.website:
-        wa = analyze_website(lead.website)
+    if lead.website and lead.website.strip():
+        wa = analyze_website(lead.website.strip())
         lead.website_status = wa["status"]
         lead.website_year = wa.get("year")
         lead.notes = wa.get("notes", "")
@@ -93,7 +93,7 @@ def process_lead(lead: BusinessLead, generate_emails: bool = True) -> BusinessLe
         lead.notes = "Nėra svetainės"
 
     # 2. Try to find more contacts from their website
-    if lead.website and (not lead.email or not lead.phone):
+    if lead.website and lead.website.strip() and (not lead.email or not lead.phone):
         contacts = find_contacts(lead.website)
         if not lead.email and contacts.get("email"):
             lead.email = contacts["email"]

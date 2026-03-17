@@ -50,7 +50,10 @@ INDUSTRY_TAGS = {
     "masažo salonas":             [('leisure', 'massage_room'), ('shop', 'massage')],
     "valymo paslaugos":           [('office', 'cleaning')],
     "saugos paslaugos":           [('office', 'security')],
-    "transporto paslaugos":       [('office', 'logistics'), ('office', 'transport')],
+    "transporto paslaugos":       [('office', 'transport'), ('office', 'logistics')],
+    "logistika":                  [('office', 'logistics'), ('landuse', 'industrial')],
+    "sandėliavimas":              [('building', 'warehouse'), ('landuse', 'warehouse')],
+    "gamyba":                     [('landuse', 'industrial'), ('building', 'industrial')],
 }
 
 
@@ -171,15 +174,17 @@ def _to_lead(item: dict, city: str, industry: str) -> Optional[BusinessLead]:
         or ""
     )
 
-    # Website
+    # Website — store None when missing so the analyzer is called correctly
     website = (
         tags.get("website")
         or tags.get("contact:website")
         or tags.get("url")
-        or ""
+        or None
     )
-    if website and not website.startswith("http"):
-        website = "https://" + website
+    if website:
+        website = website.strip()
+        if not website.startswith("http"):
+            website = "https://" + website
 
     return BusinessLead(
         company_name=name,

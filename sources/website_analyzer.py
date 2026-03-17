@@ -3,12 +3,14 @@ Website Analyzer
 Checks if a business has a website, and if so, how modern it is.
 
 Returns:
-  status : "none" | "old" | "modern"
+  status : "none" | "old" | "modern" | "unreachable"
   year   : detected copyright / creation year (int or None)
   notes  : short human-readable diagnosis
+
+"unreachable" means a URL was provided but the site could not be fetched
+(timeout, DNS error, SSL error, etc.) — do NOT treat as "no website".
 """
 import re
-import time
 import logging
 from typing import Optional
 from datetime import datetime
@@ -29,16 +31,22 @@ HEADERS = {
 
 CURRENT_YEAR = datetime.now().year
 OLD_THRESHOLD = 2020   # copyright year ≤ this → "old"
+TIMEOUT = 20           # seconds — increased for slow Lithuanian sites
 
 
 def analyze_website(url: str) -> dict:
     """
     Returns dict:
-      status  : "none" | "old" | "modern"
+      status  : "none" | "old" | "modern" | "unreachable"
       year    : int | None
       https   : bool
       mobile  : bool    (has viewport meta)
       notes   : str
+
+    "none"        — no URL provided at all
+    "unreachable" — URL provided but couldn't connect (timeout / DNS / SSL)
+    "old"         — site loads but shows signs of being outdated
+    "modern"      — site loads and looks up-to-date
     """
     result = {
         "status": "none",
@@ -48,32 +56,48 @@ def analyze_website(url: str) -> dict:
         "notes": "",
     }
 
-    if not url:
-        result["notes"] = "Nėra svetainės"
+    # Guard: empty / None URL → genuine "none"
+    if not url or not url.strip():
+        result["notes"] = "Nėra svetainės URL"
         return result
+
+    url = url.strip()
 
     # Normalize URL
     if not url.startswith("http"):
         url = "https://" + url
 
+    # ── Fetch ─────────────────────────────────────────────────────────────────
+    resp = None
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=12, allow_redirects=True)
+        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
         result["https"] = resp.url.startswith("https://")
     except requests.exceptions.SSLError:
-        # Try http
+        # Try plain HTTP fallback
         try:
-            url_http = url.replace("https://", "http://")
-            resp = requests.get(url_http, headers=HEADERS, timeout=12, allow_redirects=True)
+            url_http = url.replace("https://", "http://", 1)
+            resp = requests.get(url_http, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
             result["https"] = False
         except Exception as e:
-            result["notes"] = f"Svetainė nepasiekiama: {e}"
+            result["status"] = "unreachable"
+            result["notes"] = f"SSL klaida, HTTP taip pat nepasiekiama: {type(e).__name__}"
             return result
+    except requests.exceptions.Timeout:
+        result["status"] = "unreachable"
+        result["notes"] = "Svetainė per lėta (timeout)"
+        return result
+    except requests.exceptions.ConnectionError as e:
+        result["status"] = "unreachable"
+        result["notes"] = f"Nepavyko prisijungti: {type(e).__name__}"
+        return result
     except Exception as e:
-        result["notes"] = f"Svetainė nepasiekiama: {e}"
+        result["status"] = "unreachable"
+        result["notes"] = f"Klaida: {type(e).__name__}"
         return result
 
     if resp.status_code >= 400:
-        result["notes"] = f"HTTP {resp.status_code} — svetainė neveikia"
+        result["status"] = "unreachable"
+        result["notes"] = f"HTTP {resp.status_code}"
         return result
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -87,7 +111,7 @@ def analyze_website(url: str) -> dict:
     result["year"] = year
 
     # ── Old-website signals ───────────────────────────────────────────────────
-    old_signals = []
+    old_signals    = []
     modern_signals = []
 
     # 1. Copyright year
@@ -122,22 +146,19 @@ def analyze_website(url: str) -> dict:
         modern_signals.append("Tailwind CSS")
     if "bootstrap/5." in page_text or "bootstrap@5" in page_text:
         modern_signals.append("Bootstrap 5")
-    if "wp-content" in page_text or "wordpress" in page_text:
-        # WordPress can be old or new — check year
-        pass
 
     # ── Decision ──────────────────────────────────────────────────────────────
-    old_score = len(old_signals)
+    old_score    = len(old_signals)
     modern_score = len(modern_signals)
 
     if old_score >= 2 or (year and year <= OLD_THRESHOLD):
         result["status"] = "old"
-        result["notes"] = "Sena svetainė: " + ", ".join(old_signals) if old_signals else "Sena svetainė"
+        result["notes"] = ("Sena svetainė: " + ", ".join(old_signals)) if old_signals else "Sena svetainė"
     elif modern_score >= 1 and old_score == 0:
         result["status"] = "modern"
         result["notes"] = "Moderni svetainė: " + ", ".join(modern_signals)
     else:
-        # Default: if it loads, treat as modern unless year is old
+        # Default: if it loads, treat as modern unless year is clearly old
         if year and year <= OLD_THRESHOLD:
             result["status"] = "old"
             result["notes"] = f"Sena svetainė (© {year})"
@@ -154,16 +175,14 @@ def analyze_website(url: str) -> dict:
 
 def _extract_copyright_year(soup: BeautifulSoup, raw_html: str) -> Optional[int]:
     """Extract the most relevant copyright/creation year from a page."""
-    # Look in footer first
     footer = soup.find("footer") or soup.find(id=re.compile("footer", re.I))
     search_text = footer.get_text() if footer else soup.get_text()
 
-    # Pattern: © 2019, Copyright 2018, 2017-2021, etc.
     patterns = [
         r"©\s*(\d{4})",
         r"copyright\s*(?:©)?\s*(\d{4})",
         r"(\d{4})\s*[-–]\s*\d{4}\s*©",
-        r"©\s*\d{4}\s*[-–]\s*(\d{4})",   # take the latest year in a range
+        r"©\s*\d{4}\s*[-–]\s*(\d{4})",
     ]
 
     years = []
@@ -174,9 +193,9 @@ def _extract_copyright_year(soup: BeautifulSoup, raw_html: str) -> Optional[int]
                 years.append(y)
 
     if years:
-        return max(years)   # take the most recent year found
+        return max(years)
 
-    # Fallback: look in meta tags
+    # Fallback: meta tags
     for meta in soup.find_all("meta"):
         content = meta.get("content", "")
         m = re.search(r"\b(20\d{2})\b", content)
