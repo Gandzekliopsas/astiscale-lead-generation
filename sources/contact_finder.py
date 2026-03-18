@@ -21,6 +21,20 @@ HEADERS = {
     ),
 }
 
+# Lithuanian city names found in addresses → canonical city key
+CITY_PATTERNS = {
+    "vilnius":      ["vilnius", "vilniuje", "vilniaus"],
+    "kaunas":       ["kaunas", "kaune", "kauno"],
+    "klaipeda":     ["klaipėda", "klaipėdoje", "klaipėdos"],
+    "siauliai":     ["šiauliai", "šiauliuose", "šiaulių"],
+    "panevezys":    ["panevėžys", "panevėžyje", "panevėžio"],
+    "alytus":       ["alytus", "alytuje", "alytaus"],
+    "marijampole":  ["marijampolė", "marijampolėje", "marijampolės"],
+    "mazeikiai":    ["mažeikiai", "mažeikiuose", "mažeikių"],
+    "jonava":       ["jonava", "jonavoje", "jonavos"],
+    "utena":        ["utena", "utenoje", "utenos"],
+}
+
 # Sub-pages likely to have contact info
 CONTACT_PATHS = [
     "/kontaktai", "/kontaktas", "/contact", "/contacts",
@@ -38,12 +52,26 @@ SPAM_DOMAINS = {
 }
 
 
+def detect_city(text: str) -> str:
+    """
+    Detect which Lithuanian city is mentioned in an address string or webpage text.
+    Returns the canonical city key (e.g. 'vilnius') or '' if not found.
+    Prefers the first city found in the text — typically the city in the address line.
+    """
+    text_lower = text.lower()
+    for city_key, variants in CITY_PATTERNS.items():
+        for v in variants:
+            if v in text_lower:
+                return city_key
+    return ""
+
+
 def find_contacts(website_url: str) -> dict:
     """
-    Returns dict with best email + phone found on the website.
+    Returns dict with best email + phone + city found on the website.
     Falls back gracefully if site is unreachable.
     """
-    result = {"email": "", "phone": "", "owner_name": ""}
+    result = {"email": "", "phone": "", "owner_name": "", "city": "", "address": ""}
 
     if not website_url:
         return result
@@ -86,6 +114,17 @@ def find_contacts(website_url: str) -> dict:
         if not result["owner_name"]:
             result["owner_name"] = _extract_contact_person(soup)
 
+        # ── Address / city from structured markup or address elements ──────────
+        if not result["address"]:
+            addr_el = (
+                soup.select_one("[itemprop='address']")
+                or soup.select_one(".address")
+                or soup.select_one(".kontaktai address")
+                or soup.select_one("address")
+            )
+            if addr_el:
+                result["address"] = " ".join(addr_el.get_text().split()).strip()
+
     # Pick best email (prefer non-generic)
     if emails:
         result["email"] = _best_email(emails)
@@ -95,7 +134,13 @@ def find_contacts(website_url: str) -> dict:
     if valid_phones:
         result["phone"] = valid_phones[0]
 
-    logger.debug(f"  Contact finder: email={result['email']} phone={result['phone']}")
+    # Detect city from address or full page text of first page
+    if result["address"]:
+        result["city"] = detect_city(result["address"])
+
+    logger.debug(
+        f"  Contact finder: email={result['email']} phone={result['phone']} city={result['city']}"
+    )
     return result
 
 

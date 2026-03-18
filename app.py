@@ -289,7 +289,7 @@ def _do_run(run_id: int, req: RunRequest):
         from sources.rekvizitai import search_fast as search_rekvizitai
         from sources.web_search import search_businesses as search_web, is_in_city
         from sources.website_analyzer import analyze_website
-        from sources.contact_finder import find_contacts
+        from sources.contact_finder import find_contacts, detect_city
         from processors.service_recommender import recommend
         from processors.email_generator import generate_email
         from sources.rekvizitai import BusinessLead
@@ -429,27 +429,37 @@ def _do_run(run_id: int, req: RunRequest):
                 log(f"\n[{len(processed)+1}] {lead.company_name} ({lead.website_status.upper()})")
 
                 # Contact scraping from website
-                if lead.website and (not lead.email or not lead.phone):
+                if lead.website and (not lead.email or not lead.phone or not lead.address):
                     try:
                         contacts = find_contacts(lead.website)
                         if not lead.email and contacts.get("email"):
                             lead.email = contacts["email"]
                         if not lead.phone and contacts.get("phone"):
                             lead.phone = contacts["phone"]
+                        if not lead.address and contacts.get("address"):
+                            lead.address = contacts["address"]
+                        # Website-detected city is most reliable — override searched city
+                        if contacts.get("city"):
+                            lead.city = contacts["city"]
                     except Exception:
                         pass
+
+                # Detect actual city from address if not yet determined from website
+                if lead.address:
+                    detected = detect_city(lead.address)
+                    if detected:
+                        lead.city = detected
 
                 # Email fallback: search web for company email if still missing
                 if not lead.email and lead.company_name:
                     try:
-                        from sources.web_search import _ddg_search, EMAIL_RE
+                        from sources.web_search import _ddg_search
                         q = f'"{lead.company_name}" el. paštas OR "info@" OR "kontaktai@"'
                         hits = _ddg_search(q, lead.city or "", lead.industry or "", set())
                         for hit in hits:
                             if hit.email:
                                 lead.email = hit.email
                                 break
-                            # Also try to extract email from website URL we found
                             if hit.website and not lead.website:
                                 lead.website = hit.website
                     except Exception:
