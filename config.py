@@ -13,6 +13,13 @@ load_dotenv(_ENV_PATH, override=True)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")  # Optional
 
+# ── Telegram notifications ────────────────────────────────────────────────────
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+# ── Dashboard public URL (used for tracking pixel) ────────────────────────────
+DASHBOARD_URL = os.getenv("RAILWAY_PUBLIC_DOMAIN", "https://astiscalelead.up.railway.app")
+
 # ── Email (Hostinger SMTP) ────────────────────────────────────────────────────
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))   # 465 = SSL

@@ -23,17 +23,21 @@ TAISYKLĖS:
 2. Kreipiamasi VARDU (jei žinomas) — draugiškai, bet profesionaliai. Jei vardas nežinomas, rašyk "Laba diena!"
 3. Laiške VISADA minima konkreti įmonė ir jos industrija
 4. ⚠️ SIŪLYK TIK VIENĄ PASLAUGĄ — tą, kuri nurodyta SIŪLOMA PASLAUGA laukelyje. NE daugiau. NE kitas paslaugas.
-5. Problema — konkretus skausmas susijęs TIK su ta viena paslauga
-6. Sprendimas — trumpai ir aiškiai, be techninio žargono
-7. CTA — VIENAS aiškus kvietimas (15 min. skambutis arba demo)
-8. Ilgis: 120–200 žodžių. NE ILGIAU.
-9. Tonas: šiltas, paprastas, žmogiškas — NE korporatyvinis
-10. Jokių buzzwords kaip "sinergija", "holistinis", "inovatyvus"
+5. Rašyk TIK apie VIENĄ paslaugą. NIEKADA neminėk kitų paslaugų ar paketų viename laiške.
+6. Problema — konkretus skausmas susijęs TIK su ta viena paslauga
+7. Sprendimas — trumpai ir aiškiai, be techninio žargono
+8. CTA — VIENAS aiškus kvietimas: 15 minučių pokalbis telefonu
+9. Ilgis: 120–200 žodžių. NE ILGIAU.
+10. Tonas: šiltas, paprastas, žmogiškas — NE korporatyvinis
+11. Jokių buzzwords kaip "sinergija", "holistinis", "inovatyvus"
 
 ⚠️ DRAUDŽIAMA:
 - Minėti kitas paslaugas (chatbot, meta ads, svetainę, valdymo sistemas) — TIKTAI siūloma paslauga
+- Siūlyti paketus, kompleksus ar kelias paslaugas viename laiške
 - Išgalvoti konkurentų pavadinimus, statistikas ar skaičius
 - Rašyti detalių apie įmonę, kurių negavai iš pateiktų duomenų
+
+STRUKTŪRA: viena problema → vienas sprendimas (tik pasirinkta paslauga) → vienas CTA (15 min. skambutis)
 
 KONTAKTAI: {AGENT_NAME} | {AGENCY_NAME} | {AGENCY_EMAIL} | {AGENCY_WEBSITE}
 
@@ -50,17 +54,14 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
     """
     vadovas_first = lead.vadovas.split()[0] if lead.vadovas else ""
 
-    # When a service_target is selected, email is about THAT ONE service only.
-    # Use only the first (primary) service key regardless of what recommend() returned.
+    # Always use ONLY the first (primary) service key — one email, one service.
     valid_keys = [k for k in service_keys if k in SERVICES]
-    if service_target and valid_keys:
-        primary_key = valid_keys[0]
-        services_text = f"{SERVICES[primary_key]['name']}: {SERVICES[primary_key]['pitch_lt']}"
+    primary_key = valid_keys[0] if valid_keys else None
+    if primary_key:
+        svc = SERVICES[primary_key]
+        services_text = f"{svc['lt']}: {svc['pitch_lt']}"
     else:
-        services_text = "\n".join(
-            f"- {SERVICES[k]['name']}: {SERVICES[k]['pitch_lt']}"
-            for k in valid_keys
-        )
+        services_text = "skaitmeninės rinkodaros paslauga"
 
     # Build situation based on website status
     if lead.website_status == "none":

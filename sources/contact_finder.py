@@ -3,6 +3,7 @@ Contact Finder
 Scrapes additional contact info (email, phone, owner name) from a business's own website.
 Used to supplement / improve data from rekvizitai.lt.
 """
+import json
 import re
 import logging
 from typing import Optional
@@ -40,6 +41,8 @@ CONTACT_PATHS = [
     "/kontaktai", "/kontaktas", "/contact", "/contacts",
     "/apie-mus", "/apie", "/about", "/about-us",
     "/susisiekite", "/ryšiai",
+    "/impressum", "/team", "/staff", "/darbuotojai",
+    "/rekvizitai", "/en/contact", "/lt/kontaktai",
 ]
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
@@ -68,10 +71,10 @@ def detect_city(text: str) -> str:
 
 def find_contacts(website_url: str) -> dict:
     """
-    Returns dict with best email + phone + city found on the website.
+    Returns dict with best email + phone + city + facebook_url found on the website.
     Falls back gracefully if site is unreachable.
     """
-    result = {"email": "", "phone": "", "owner_name": "", "city": "", "address": ""}
+    result = {"email": "", "phone": "", "owner_name": "", "city": "", "address": "", "facebook_url": ""}
 
     if not website_url:
         return result
@@ -101,6 +104,20 @@ def find_contacts(website_url: str) -> dict:
             if _valid_email(em):
                 emails.add(em.lower())
 
+        # 3. JSON-LD structured data
+        for script in soup.select("script[type='application/ld+json']"):
+            try:
+                data = json.loads(script.string or "")
+                _extract_emails_from_jsonld(data, emails)
+            except Exception:
+                pass
+
+        # 4. Meta tags with email
+        for meta in soup.select("meta[name='email'], meta[property='og:email']"):
+            em = (meta.get("content") or "").strip().lower()
+            if _valid_email(em):
+                emails.add(em)
+
         # ── Phones ────────────────────────────────────────────────────────────
         for a in soup.select("a[href^='tel:']"):
             ph = a["href"].replace("tel:", "").strip()
@@ -125,6 +142,15 @@ def find_contacts(website_url: str) -> dict:
             if addr_el:
                 result["address"] = " ".join(addr_el.get_text().split()).strip()
 
+        # ── Facebook page URL ──────────────────────────────────────────────────
+        if not result["facebook_url"]:
+            for a in soup.select("a[href*='facebook.com/']"):
+                href = (a.get("href") or "").strip()
+                # Filter out generic FB share links and the root facebook.com
+                if re.search(r"facebook\.com/(?!sharer|share|dialog|tr\b)[^?#\s]{3,}", href):
+                    result["facebook_url"] = href.split("?")[0].rstrip("/")
+                    break
+
     # Pick best email (prefer non-generic)
     if emails:
         result["email"] = _best_email(emails)
@@ -139,9 +165,25 @@ def find_contacts(website_url: str) -> dict:
         result["city"] = detect_city(result["address"])
 
     logger.debug(
-        f"  Contact finder: email={result['email']} phone={result['phone']} city={result['city']}"
+        f"  Contact finder: email={result['email']} phone={result['phone']} "
+        f"city={result['city']} fb={result['facebook_url']}"
     )
     return result
+
+
+def _extract_emails_from_jsonld(data, emails: set):
+    """Recursively search JSON-LD data for 'email' keys."""
+    if isinstance(data, dict):
+        for key, val in data.items():
+            if key.lower() == "email" and isinstance(val, str):
+                em = val.strip().lower()
+                if _valid_email(em):
+                    emails.add(em)
+            else:
+                _extract_emails_from_jsonld(val, emails)
+    elif isinstance(data, list):
+        for item in data:
+            _extract_emails_from_jsonld(item, emails)
 
 
 def _safe_get(url: str) -> Optional[str]:
