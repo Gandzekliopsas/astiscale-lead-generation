@@ -95,6 +95,34 @@ def _migrate():
             except Exception:
                 pass  # Column already exists — fine
 
+    def _add_col(table, col_def):
+        with get_db() as db:
+            try:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
+            except Exception:
+                pass  # Column already exists — fine
+
+    _add_col("leads", "score INTEGER DEFAULT 0")
+    _add_col("leads", "crm_stage TEXT DEFAULT 'rastas'")
+    _add_col("leads", "open_count INTEGER DEFAULT 0")
+    _add_col("leads", "first_opened_at TIMESTAMP")
+    _add_col("leads", "last_opened_at TIMESTAMP")
+    _add_col("leads", "replied INTEGER DEFAULT 0")
+    _add_col("leads", "replied_at TIMESTAMP")
+    _add_col("leads", "followup_1_body TEXT")
+    _add_col("leads", "followup_2_body TEXT")
+    _add_col("leads", "followup_3_body TEXT")
+    _add_col("leads", "followup_1_at TIMESTAMP")
+    _add_col("leads", "followup_2_at TIMESTAMP")
+    _add_col("leads", "followup_3_at TIMESTAMP")
+    _add_col("leads", "followup_1_sent INTEGER DEFAULT 0")
+    _add_col("leads", "followup_2_sent INTEGER DEFAULT 0")
+    _add_col("leads", "followup_3_sent INTEGER DEFAULT 0")
+    _add_col("leads", "source TEXT DEFAULT 'osm'")
+    _add_col("leads", "google_maps_url TEXT DEFAULT ''")
+    _add_col("leads", "rating REAL DEFAULT 0")
+    _add_col("leads", "review_count INTEGER DEFAULT 0")
+
 
 # ── Leads ─────────────────────────────────────────────────────────────────────
 
@@ -223,6 +251,122 @@ def get_stats(run_date: str = None) -> dict:
         "industries":  [{"industry": r[0], "count": r[1]} for r in industries],
         "services":    [{"service": r[0], "count": r[1]} for r in services],
     }
+
+
+def track_email_open(lead_id: int) -> dict:
+    """Increment open count and record timestamps. Returns updated lead info."""
+    with get_db() as db:
+        db.execute("""
+            UPDATE leads SET
+                open_count = open_count + 1,
+                last_opened_at = datetime('now'),
+                first_opened_at = COALESCE(first_opened_at, datetime('now'))
+            WHERE id = ?
+        """, (lead_id,))
+        db.commit()
+        row = db.execute("SELECT open_count, company_name FROM leads WHERE id=?", (lead_id,)).fetchone()
+        return dict(row) if row else {}
+
+
+def update_crm_stage(lead_id: int, stage: str) -> bool:
+    """Move lead to a CRM pipeline stage."""
+    valid = {"rastas", "susisiekta", "atidare", "atsake", "demo", "pasiulymas", "laimeta", "prarasta"}
+    if stage not in valid:
+        return False
+    with get_db() as db:
+        db.execute("UPDATE leads SET crm_stage=? WHERE id=?", (stage, lead_id))
+        db.commit()
+    return True
+
+
+def mark_replied(lead_id: int):
+    with get_db() as db:
+        db.execute(
+            "UPDATE leads SET replied=1, replied_at=datetime('now'), crm_stage='atsake' WHERE id=?",
+            (lead_id,)
+        )
+        db.commit()
+
+
+def save_followup_emails(lead_id: int, body1: str, body2: str, body3: str):
+    """Schedule follow-up emails: +3, +7, +14 days from now."""
+    with get_db() as db:
+        db.execute("""
+            UPDATE leads SET
+                followup_1_body=?, followup_1_at=datetime('now','+3 days'),
+                followup_2_body=?, followup_2_at=datetime('now','+7 days'),
+                followup_3_body=?, followup_3_at=datetime('now','+14 days')
+            WHERE id=?
+        """, (body1, body2, body3, lead_id))
+        db.commit()
+
+
+def mark_followup_sent(lead_id: int, num: int):
+    col = f"followup_{num}_sent"
+    with get_db() as db:
+        db.execute(f"UPDATE leads SET {col}=1 WHERE id=?", (lead_id,))
+        db.commit()
+
+
+def update_lead_score(lead_id: int, score: int):
+    with get_db() as db:
+        db.execute("UPDATE leads SET score=? WHERE id=?", (score, lead_id))
+        db.commit()
+
+
+def get_due_followups() -> list:
+    """Return leads whose follow-up emails are due to be sent now."""
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT * FROM leads WHERE email_sent=1 AND replied=0 AND (
+                (followup_1_sent=0 AND followup_1_at IS NOT NULL AND followup_1_at <= datetime('now') AND followup_1_body IS NOT NULL AND followup_1_body != '')
+                OR (followup_1_sent=1 AND followup_2_sent=0 AND followup_2_at IS NOT NULL AND followup_2_at <= datetime('now') AND followup_2_body IS NOT NULL AND followup_2_body != '')
+                OR (followup_1_sent=1 AND followup_2_sent=1 AND followup_3_sent=0 AND followup_3_at IS NOT NULL AND followup_3_at <= datetime('now') AND followup_3_body IS NOT NULL AND followup_3_body != '')
+            )
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_analytics() -> dict:
+    """Analytics data for the dashboard."""
+    with get_db() as db:
+        total = db.execute("SELECT COUNT(*) FROM leads").fetchone()[0]
+        contacted = db.execute("SELECT COUNT(*) FROM leads WHERE email_sent=1").fetchone()[0]
+        opened = db.execute("SELECT COUNT(*) FROM leads WHERE open_count > 0").fetchone()[0]
+        replied_count = db.execute("SELECT COUNT(*) FROM leads WHERE replied=1").fetchone()[0]
+
+        weekly = [dict(r) for r in db.execute("""
+            SELECT strftime('%Y-W%W', created_at) as week, COUNT(*) as count
+            FROM leads GROUP BY week ORDER BY week DESC LIMIT 8
+        """).fetchall()]
+
+        by_source = [dict(r) for r in db.execute("""
+            SELECT COALESCE(NULLIF(source,''),'osm') as src, COUNT(*) as cnt
+            FROM leads GROUP BY src ORDER BY cnt DESC
+        """).fetchall()]
+
+        by_stage = [dict(r) for r in db.execute("""
+            SELECT COALESCE(NULLIF(crm_stage,''),'rastas') as stage, COUNT(*) as cnt
+            FROM leads GROUP BY stage ORDER BY cnt DESC
+        """).fetchall()]
+
+        by_industry = [dict(r) for r in db.execute("""
+            SELECT industry, COUNT(*) as cnt FROM leads
+            WHERE industry != '' GROUP BY industry ORDER BY cnt DESC LIMIT 8
+        """).fetchall()]
+
+        hot = db.execute("SELECT COUNT(*) FROM leads WHERE score >= 75").fetchone()[0]
+        warm = db.execute("SELECT COUNT(*) FROM leads WHERE score >= 50 AND score < 75").fetchone()[0]
+        cold = db.execute("SELECT COUNT(*) FROM leads WHERE score < 50").fetchone()[0]
+
+        return {
+            "total": total, "contacted": contacted, "opened": opened, "replied": replied_count,
+            "open_rate": round(opened / contacted * 100, 1) if contacted > 0 else 0,
+            "reply_rate": round(replied_count / contacted * 100, 1) if contacted > 0 else 0,
+            "weekly": weekly, "by_source": by_source, "by_stage": by_stage,
+            "by_industry": by_industry,
+            "score_hot": hot, "score_warm": warm, "score_cold": cold,
+        }
 
 
 # ── Runs ──────────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@
 AstiScale Lead Generation Dashboard — FastAPI backend
 Deploy on Railway: web: uvicorn app:app --host 0.0.0.0 --port $PORT
 """
+import imaplib
 import io
 import logging
 import os
@@ -9,6 +10,7 @@ import smtplib
 import ssl
 import sys
 import threading
+import email as email_lib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -19,6 +21,8 @@ from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -181,6 +185,8 @@ def send_lead_email(lead_id: int):
         subject = lines[0].replace("Tema:", "").strip()
         body = "\n".join(lines[1:]).strip()
 
+    dashboard_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", "https://astiscalelead.up.railway.app")
+
     # Build MIME message
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -190,6 +196,11 @@ def send_lead_email(lead_id: int):
     # Plain text part
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
+    # HTML part with tracking pixel
+    pixel = f'<img src="{dashboard_url}/track/{lead_id}.gif" width="1" height="1" style="display:none">'
+    html_body = f"<html><body>{body.replace(chr(10), '<br>')}{pixel}</body></html>"
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
     # Send via SSL (port 465)
     try:
         context = ssl.create_default_context()
@@ -198,6 +209,24 @@ def send_lead_email(lead_id: int):
             server.sendmail(SMTP_USER, lead["email"], msg.as_string())
 
         db.mark_email_sent(lead_id)
+
+        # Generate and save follow-up emails
+        try:
+            from processors.followup_generator import generate_followups
+            service_target = lead.get("service_target", "")
+            b1, b2, b3 = generate_followups(lead, body, service_target)
+            db.save_followup_emails(lead_id, b1, b2, b3)
+        except Exception as e:
+            logging.warning(f"Follow-up generation failed for lead {lead_id}: {e}")
+
+        # Score the lead
+        try:
+            from processors.lead_scorer import score_lead
+            score = score_lead(dict(lead))
+            db.update_lead_score(lead_id, score)
+        except Exception as e:
+            logging.warning(f"Lead scoring failed for lead {lead_id}: {e}")
+
         return {"ok": True, "message": f"El. laiškas išsiųstas į {lead['email']}"}
 
     except smtplib.SMTPAuthenticationError:
@@ -501,3 +530,180 @@ def _do_run(run_id: int, req: RunRequest):
     finally:
         with _run_lock:
             _active_run_id = None
+
+
+# ── API: Tracking pixel ───────────────────────────────────────────────────────
+
+@app.get("/track/{lead_id}.gif")
+async def track_pixel(lead_id: int, background_tasks: BackgroundTasks):
+    """1x1 transparent GIF — loads when email client renders images."""
+    GIF = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+    background_tasks.add_task(_on_email_open, lead_id)
+    from fastapi.responses import Response
+    return Response(content=GIF, media_type="image/gif", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"
+    })
+
+def _on_email_open(lead_id: int):
+    result = db.track_email_open(lead_id)
+    if result and result.get("open_count") == 1:
+        try:
+            import telegram_bot
+            telegram_bot.notify_email_opened(result.get("company_name", ""), result.get("open_count", 1))
+        except Exception:
+            pass
+
+
+# ── API: Analytics ────────────────────────────────────────────────────────────
+
+@app.get("/api/analytics")
+async def get_analytics():
+    return db.get_analytics()
+
+
+# ── API: CRM stage update ─────────────────────────────────────────────────────
+
+@app.post("/api/leads/{lead_id}/stage")
+async def update_stage(lead_id: int, body: dict):
+    ok = db.update_crm_stage(lead_id, body.get("stage", ""))
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid stage")
+    return {"ok": True}
+
+
+# ── API: Check replies via IMAP ───────────────────────────────────────────────
+
+@app.post("/api/check-replies")
+async def check_replies(background_tasks: BackgroundTasks):
+    background_tasks.add_task(_imap_check_replies)
+    return {"ok": True, "message": "Tikrinama paštas..."}
+
+def _imap_check_replies():
+    from config import SMTP_USER, SMTP_PASSWORD
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return
+    try:
+        mail = imaplib.IMAP4_SSL("imap.hostinger.com", 993)
+        mail.login(SMTP_USER, SMTP_PASSWORD)
+        mail.select("INBOX")
+        _, data = mail.search(None, "UNSEEN")
+        if not data[0]:
+            mail.logout()
+            return
+        leads = db.get_leads(limit=9999)
+        lead_email_map = {(l.get("email") or "").lower(): l for l in leads if l.get("email")}
+        for num in data[0].split():
+            try:
+                _, msg_data = mail.fetch(num, "(RFC822)")
+                msg = email_lib.message_from_bytes(msg_data[0][1])
+                from_addr = msg.get("From", "").lower()
+                for lead_email, lead in lead_email_map.items():
+                    if lead_email and lead_email in from_addr and not lead.get("replied"):
+                        db.mark_replied(lead["id"])
+                        try:
+                            import telegram_bot
+                            telegram_bot.notify_reply_received(lead.get("company_name", ""), lead_email)
+                        except Exception:
+                            pass
+            except Exception:
+                continue
+        mail.logout()
+    except Exception as e:
+        logger.error(f"IMAP check failed: {e}")
+
+
+# ── API: Send due follow-ups ──────────────────────────────────────────────────
+
+@app.post("/api/followups/send-due")
+async def send_due_followups_endpoint(background_tasks: BackgroundTasks):
+    background_tasks.add_task(_send_due_followups)
+    return {"ok": True}
+
+@app.get("/api/followups/due-count")
+async def due_followup_count():
+    return {"count": len(db.get_due_followups())}
+
+def _send_due_followups():
+    due = db.get_due_followups()
+    for lead in due:
+        for num in [1, 2, 3]:
+            if not lead.get(f"followup_{num}_sent") and lead.get(f"followup_{num}_body"):
+                _send_followup(lead, num)
+                break
+
+def _send_followup(lead: dict, num: int):
+    dashboard_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", "https://astiscalelead.up.railway.app")
+
+    if not lead.get("email"):
+        return
+
+    body = lead[f"followup_{num}_body"]
+    subject_map = {1: "Re: dar vienas klausimas", 2: "Re: trumpas video demo?", 3: "Re: paskutinis laiškas"}
+    subject = f"{subject_map.get(num, 'Re:')} — {lead['company_name']}"
+
+    pixel = f'<img src="{dashboard_url}/track/{lead["id"]}.gif" width="1" height="1" style="display:none">'
+    html = f"<html><body>{body.replace(chr(10), '<br>')}{pixel}</body></html>"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = SMTP_USER
+    msg["To"] = lead["email"]
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=15) as s:
+            s.login(SMTP_USER, SMTP_PASSWORD)
+            s.sendmail(SMTP_USER, lead["email"], msg.as_string())
+        db.mark_followup_sent(lead["id"], num)
+        try:
+            import telegram_bot
+            telegram_bot.notify_followup_sent(lead.get("company_name", ""), num)
+        except Exception:
+            pass
+        logger.info(f"Follow-up #{num} sent to {lead['company_name']}")
+    except Exception as e:
+        logger.error(f"Follow-up #{num} send failed for {lead.get('company_name')}: {e}")
+
+
+# ── API: Telegram test ────────────────────────────────────────────────────────
+
+@app.post("/api/telegram/test")
+async def telegram_test():
+    try:
+        import telegram_bot
+        ok = telegram_bot.send("🔔 <b>AstiScale test</b>\nTelegram ryšys veikia! ✅")
+        if ok:
+            return {"ok": True}
+        raise HTTPException(status_code=400, detail="Telegram not configured")
+    except ImportError:
+        raise HTTPException(status_code=500, detail="telegram_bot module not found")
+
+
+# ── Background schedulers ───────────────────────────────────────────────────
+
+def _scheduler_loop():
+    """Check for due follow-ups every 30 minutes."""
+    import time
+    time.sleep(60)  # wait 1 min after startup
+    while True:
+        try:
+            _send_due_followups()
+        except Exception as e:
+            logger.error(f"Follow-up scheduler error: {e}")
+        time.sleep(30 * 60)
+
+def _imap_loop():
+    """Check for email replies every 4 hours."""
+    import time
+    time.sleep(300)  # wait 5 min after startup
+    while True:
+        try:
+            _imap_check_replies()
+        except Exception as e:
+            logger.error(f"IMAP loop error: {e}")
+        time.sleep(4 * 60 * 60)
+
+threading.Thread(target=_scheduler_loop, daemon=True, name="followup-scheduler").start()
+threading.Thread(target=_imap_loop, daemon=True, name="imap-checker").start()
