@@ -286,6 +286,7 @@ def _do_run(run_id: int, req: RunRequest):
         log(f"[{datetime.now().strftime('%H:%M:%S')}] Starting lead generation...")
 
         from sources.osm_search import find_businesses as find_businesses_osm
+        from sources.rekvizitai import search_fast as search_rekvizitai
         from sources.website_analyzer import analyze_website
         from sources.contact_finder import find_contacts
         from processors.service_recommender import recommend
@@ -349,16 +350,38 @@ def _do_run(run_id: int, req: RunRequest):
                 if len(raw_leads) >= target_raw:
                     break
                 log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Ieškoma: {ind['lt']} / {cty.capitalize()}...")
-                new = find_businesses_osm(ind["query"], cty, max_results=50)
-                added = 0
-                for lead in new:
+
+                # ── Source 1: OSM (fast, sparse data) ─────────────────────────
+                osm_results = find_businesses_osm(ind["query"], cty, max_results=30)
+                osm_added = 0
+                for lead in osm_results:
                     key = lead.company_name.lower().strip()
                     if key and key not in seen:
                         seen.add(key)
                         lead.industry = ind["lt"]
                         raw_leads.append(lead)
-                        added += 1
-                log(f"  OSM rasta: {len(new)}, pridėta naujų: {added}")
+                        osm_added += 1
+                if osm_results:
+                    log(f"  OSM: {len(osm_results)} rasta, {osm_added} naujų")
+
+                # ── Source 2: Rekvizitai (comprehensive Lithuanian registry) ───
+                if len(raw_leads) < target_raw:
+                    try:
+                        rek_keyword = ind["lt"]  # Lithuanian label works well on rekvizitai
+                        log(f"  Rekvizitai: ieškoma '{rek_keyword}'...")
+                        rek_results = search_rekvizitai(rek_keyword, cty, max_results=30)
+                        rek_added = 0
+                        for lead in rek_results:
+                            key = lead.company_name.lower().strip()
+                            if key and key not in seen:
+                                seen.add(key)
+                                lead.industry = ind["lt"]
+                                raw_leads.append(lead)
+                                rek_added += 1
+                        log(f"  Rekvizitai: {len(rek_results)} rasta, {rek_added} naujų")
+                    except Exception as e:
+                        log(f"  Rekvizitai klaida: {e}")
+
             if len(raw_leads) >= target_raw:
                 break
 
