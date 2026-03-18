@@ -248,10 +248,20 @@ def search_companies(query: str, city: str = "", max_pages: int = 2) -> list:
 
 
 def _extract_company_links(soup: BeautifulSoup) -> list:
-    """Get all company page URLs from a search results page."""
+    """Get company page URLs from the main search results section only (not sidebars)."""
     urls = []
     seen = set()
-    for a in soup.find_all("a", href=True):
+
+    # Try to scope to the main results container — avoids sidebar "recently viewed" noise
+    main = (
+        soup.select_one(".companies-list")
+        or soup.select_one(".search-results")
+        or soup.select_one("#companies")
+        or soup.select_one("main")
+        or soup  # fallback: full page
+    )
+
+    for a in main.find_all("a", href=True):
         href = a["href"]
         # Company URLs look like /imone/{slug}/ — NOT /imones/
         if re.match(r".*/imone/[^/]+/?$", href):

@@ -155,5 +155,33 @@ SERVICE_TARGETS = {
     },
 }
 
+# ── Web search keywords (Lithuanian terms for DuckDuckGo/Bing search) ─────────
+# Maps industry query → better Lithuanian search term used on company websites
+INDUSTRY_WEB_KEYWORDS = {
+    "kirpykla":                 "kirpykla",
+    "grožio salonas":           "grožio salonas",
+    "nagų salonas":             "nagų salonas studija",
+    "restoranas":               "restoranas",
+    "kavinė":                   "kavinė kavos baras",
+    "picerija":                 "picerija pica",
+    "odontologas":              "odontologas odontologijos klinika",
+    "advokatų kontora":         "advokatų kontora teisinės paslaugos",
+    "nekilnojamasis turtas":    "nekilnojamojo turto agentūra",
+    "sporto klubas":            "sporto klubas fitneso centras",
+    "autoservisas":             "autoservisas automobilių remontas",
+    "viešbutis":                "viešbutis nakvynė",
+    "statybos":                 "statybos paslaugos statybos įmonė",
+    "interjero dizainas":       "interjero dizainas",
+    "buhalterinės paslaugos":   "buhalterinės paslaugos apskaita",
+    "veterinarija":             "veterinarinė klinika veterinarija",
+    "masažo salonas":           "masažo salonas masažo paslaugos",
+    "valymo paslaugos":         "valymo paslaugos patalpų valymas",
+    "saugos paslaugos":         "apsaugos paslaugos apsaugos sistemos",
+    "transporto paslaugos":     "krovinių pervežimas transporto paslaugos",
+    "logistika":                "logistikos paslaugos logistika",
+    "sandėliavimas":            "sandėliavimas sandėlių nuoma",
+    "gamyba":                   "gamybos įmonė pramonė",
+}
+
 # ── Output ────────────────────────────────────────────────────────────────────
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output", "leads")
