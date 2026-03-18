@@ -301,10 +301,16 @@ def _do_run(run_id: int, req: RunRequest):
         if service_target and service_target in SERVICE_TARGETS:
             tgt = SERVICE_TARGETS[service_target]
             tgt_label = tgt["label"]
-            industry_queries = tgt["industries"]
-            website_filter   = tgt["website_filter"]
+            website_filter = tgt["website_filter"]
             log(f"  Paslauga: {tgt_label}")
-            log(f"  Industrijos: {', '.join(industry_queries)}")
+
+            # If user also picked a specific industry, use only that one
+            if req.industry:
+                industry_queries = [req.industry]
+                log(f"  Industrija (pasirinkta): {req.industry}")
+            else:
+                industry_queries = tgt["industries"]
+                log(f"  Industrijos: {', '.join(industry_queries)}")
 
             # Build industry dicts from config INDUSTRIES or create inline
             industries = []
@@ -344,13 +350,15 @@ def _do_run(run_id: int, req: RunRequest):
                     break
                 log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Ieškoma: {ind['lt']} / {cty.capitalize()}...")
                 new = find_businesses_osm(ind["query"], cty, max_results=50)
+                added = 0
                 for lead in new:
                     key = lead.company_name.lower().strip()
                     if key and key not in seen:
                         seen.add(key)
                         lead.industry = ind["lt"]
                         raw_leads.append(lead)
-                log(f"  Rasta: {len(new)}")
+                        added += 1
+                log(f"  OSM rasta: {len(new)}, pridėta naujų: {added}")
             if len(raw_leads) >= target_raw:
                 break
 
@@ -382,6 +390,7 @@ def _do_run(run_id: int, req: RunRequest):
 
                 # ── Apply service filter ───────────────────────────────────────
                 if lead.website_status not in website_filter:
+                    log(f"  ⏭ Praleista '{lead.company_name}': svetainė={lead.website_status} (reikia: {website_filter})")
                     skipped += 1
                     continue
 
