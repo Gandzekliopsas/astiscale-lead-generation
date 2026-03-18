@@ -14,39 +14,30 @@ logger = logging.getLogger(__name__)
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ── System prompt (stays cached) ──────────────────────────────────────────────
-SYSTEM_PROMPT = f"""Tu esi {AGENCY_NAME} — Lietuvos AI ir skaitmeninės rinkodaros agentūros pardavimų ekspertas.
+SYSTEM_PROMPT = f"""Tu esi {AGENCY_NAME} — Lietuvos skaitmeninės rinkodaros agentūros pardavimų ekspertas.
 
 Tavo tikslas — rašyti LABAI ASMENINIUS šaltus el. laiškus lietuvių verslininkams.
 
 TAISYKLĖS:
 1. Laiškas VISADA rašomas lietuvių kalba
 2. Kreipiamasi VARDU (jei žinomas) — draugiškai, bet profesionaliai. Jei vardas nežinomas, rašyk "Laba diena!"
-3. Laiške VISADA minima konkreti įmonė ir jos industrija — parodyk, kad tikrai žiūrėjai jų situaciją
-4. Problema — konkretus jų situacijos skausmas (nėra svetainės / sena svetainė / nėra automatizacijos)
-5. Sprendimas — trumpai ir aiškiai, be techninio žargono
-6. Socialinis įrodymas — mini, kad jau padedame kitoms Lietuvos įmonėms tos pačios srities
+3. Laiške VISADA minima konkreti įmonė ir jos industrija
+4. ⚠️ SIŪLYK TIK VIENĄ PASLAUGĄ — tą, kuri nurodyta SIŪLOMA PASLAUGA laukelyje. NE daugiau. NE kitas paslaugas.
+5. Problema — konkretus skausmas susijęs TIK su ta viena paslauga
+6. Sprendimas — trumpai ir aiškiai, be techninio žargono
 7. CTA — VIENAS aiškus kvietimas (15 min. skambutis arba demo)
-8. Ilgis: 150–250 žodžių. NE ILGIAU.
+8. Ilgis: 120–200 žodžių. NE ILGIAU.
 9. Tonas: šiltas, paprastas, žmogiškas — NE korporatyvinis
 10. Jokių buzzwords kaip "sinergija", "holistinis", "inovatyvus"
 
-⚠️ DRAUDŽIAMA IŠGALVOTI informaciją:
-- Jokių konkurentų pavadinimų (nežinai jų)
-- Jokių skaičių ar statistikų (nebent pateikta duomenyse)
-- Jokių detalių apie įmonę, kurių negavai iš pateiktų duomenų
-- Rašyk TIK tai, kas tikrai žinoma apie šią konkretią įmonę
+⚠️ DRAUDŽIAMA:
+- Minėti kitas paslaugas (chatbot, meta ads, svetainę, valdymo sistemas) — TIKTAI siūloma paslauga
+- Išgalvoti konkurentų pavadinimus, statistikas ar skaičius
+- Rašyti detalių apie įmonę, kurių negavai iš pateiktų duomenų
 
-APIE {AGENCY_NAME}:
-- Kuriame AI pokalbių robotus svetainėms (veikia 24/7, lietuvių kalba)
-- Tvarkome Facebook/Instagram reklamas (Meta Ads)
-- Kuriame ir modernizuojame svetaines bei el. parduotuves
-- Diegiame verslo valdymo sistemas transporto ir logistikos įmonėms
-- Klientai: grožio salonai, restoranai, odontologai, NT agentūros, sporto klubai ir kt.
-- El. paštas: {AGENCY_EMAIL}
-- Svetainė: {AGENCY_WEBSITE}
-- Kontaktinis asmuo: {AGENT_NAME}
+KONTAKTAI: {AGENT_NAME} | {AGENCY_NAME} | {AGENCY_EMAIL} | {AGENCY_WEBSITE}
 
-Grąžink TIK laišką — be jokių paaiškinimų, antraščių ar metaduomenų.
+Grąžink TIK laišką — be jokių paaiškinimų ar metaduomenų.
 """
 
 
@@ -59,12 +50,17 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
     """
     vadovas_first = lead.vadovas.split()[0] if lead.vadovas else ""
 
-    # Only include services that exist in SERVICES dict
+    # When a service_target is selected, email is about THAT ONE service only.
+    # Use only the first (primary) service key regardless of what recommend() returned.
     valid_keys = [k for k in service_keys if k in SERVICES]
-    services_text = "\n".join(
-        f"- {SERVICES[k]['name']}: {SERVICES[k]['pitch_lt']}"
-        for k in valid_keys
-    )
+    if service_target and valid_keys:
+        primary_key = valid_keys[0]
+        services_text = f"{SERVICES[primary_key]['name']}: {SERVICES[primary_key]['pitch_lt']}"
+    else:
+        services_text = "\n".join(
+            f"- {SERVICES[k]['name']}: {SERVICES[k]['pitch_lt']}"
+            for k in valid_keys
+        )
 
     # Build situation based on website status
     if lead.website_status == "none":
@@ -90,19 +86,17 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
     user_prompt = f"""Parašyk personalizuotą šaltą el. laišką šiam potencialiam klientui:
 
 ĮMONĖ: {lead.company_name}
-VADOVAS / KREIPINYS: {vadovas_first or 'Laba diena!'}
+KREIPINYS: {vadovas_first or 'Laba diena!'}
 MIESTAS: {lead.city.capitalize() if lead.city else 'Lietuva'}
 INDUSTRIJA: {lead.industry}
 SITUACIJA: {situation}
 SKAUSMO TAŠKAS: {pain}
-{service_context}
-SIŪLOMOS PASLAUGOS:
-{services_text}
+SIŪLOMA PASLAUGA (TIKTAI ŠI — NERAŠYK KITŲ): {services_text}
 
-Formato pavyzdys:
-Tema: [temos eilutė — konkreti, iki 60 simbolių, be klaustukas ar šauktukų]
+Formato reikalavimai:
+Tema: [konkreti tema, iki 60 simbolių]
 
-[Laiškas]
+[Laiškas — TIKTAI apie vieną siūlomą paslaugą]
 
 Pagarbiai,
 {AGENT_NAME}

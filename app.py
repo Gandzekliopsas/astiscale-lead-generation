@@ -439,6 +439,22 @@ def _do_run(run_id: int, req: RunRequest):
                     except Exception:
                         pass
 
+                # Email fallback: search web for company email if still missing
+                if not lead.email and lead.company_name:
+                    try:
+                        from sources.web_search import _ddg_search, EMAIL_RE
+                        q = f'"{lead.company_name}" el. paštas OR "info@" OR "kontaktai@"'
+                        hits = _ddg_search(q, lead.city or "", lead.industry or "", set())
+                        for hit in hits:
+                            if hit.email:
+                                lead.email = hit.email
+                                break
+                            # Also try to extract email from website URL we found
+                            if hit.website and not lead.website:
+                                lead.website = hit.website
+                    except Exception:
+                        pass
+
                 # Services
                 lead.service_target       = service_target
                 lead.recommended_services = recommend(lead.website_status, lead.industry, service_target)
