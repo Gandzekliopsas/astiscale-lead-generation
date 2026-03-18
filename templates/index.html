@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AstiScale — Lead Generation</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* ── Reset & Base ─────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -312,6 +313,27 @@ select.form-control { cursor: pointer; }
 .btn-send { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
 .btn-send:hover { background: rgba(74,222,128,.25); }
 .btn-send:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Kanban board ────────────────────────────────────── */
+.kanban-board { display:flex; gap:12px; overflow-x:auto; padding-bottom:16px; min-height:70vh; align-items:flex-start; }
+.kanban-col { min-width:210px; max-width:210px; background:rgba(255,255,255,0.05); border-radius:12px; padding:12px; flex-shrink:0; }
+.kanban-col-header { font-size:12px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; color:#a78bfa; }
+.kanban-col-count { background:rgba(139,92,246,0.3); border-radius:999px; padding:1px 8px; font-size:11px; color:#e9d5ff; }
+.kanban-card { background:rgba(255,255,255,0.07); border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer; border:1px solid rgba(255,255,255,0.1); transition:all 0.2s; }
+.kanban-card:hover { background:rgba(255,255,255,0.13); border-color:rgba(139,92,246,0.6); transform:translateY(-1px); }
+.kanban-card.won { background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.4); }
+.kanban-card.lost { opacity:0.5; }
+.score-badge { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; font-size:10px; font-weight:700; flex-shrink:0; }
+.score-hot { background:#ef4444; color:white; }
+.score-warm { background:#f59e0b; color:white; }
+.score-ok { background:#3b82f6; color:white; }
+.score-cold { background:#6b7280; color:white; }
+
+/* ── Settings ────────────────────────────────────────── */
+.settings-card {
+  background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;
+  border: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px;
+}
 </style>
 </head>
 <body>
@@ -335,6 +357,16 @@ select.form-control { cursor: pointer; }
     </div>
     <div class="nav-item" onclick="showPage('history')">
       <span class="nav-icon">📋</span> Istorija
+    </div>
+    <div class="nav-item" id="navCrm" onclick="showPage('crm')" style="position:relative">
+      <span class="nav-icon">🔄</span> CRM Pipeline
+      <span id="crmBadge" style="display:none;margin-left:auto;background:#ef4444;color:white;font-size:11px;border-radius:50%;width:20px;height:20px;display:none;align-items:center;justify-content:center;flex-shrink:0" id="crmBadge"></span>
+    </div>
+    <div class="nav-item" onclick="showPage('analytics')">
+      <span class="nav-icon">📊</span> Analitika
+    </div>
+    <div class="nav-item" onclick="showPage('settings')">
+      <span class="nav-icon">⚙️</span> Nustatymai
     </div>
   </nav>
   <div class="sidebar-footer">
@@ -411,6 +443,12 @@ select.form-control { cursor: pointer; }
         <select class="filter-input" id="filterIndustry" onchange="loadLeads()">
           <option value="">Visos industrijos</option>
         </select>
+        <select class="filter-input" id="filterScore" onchange="loadLeads()">
+          <option value="">Visi balai</option>
+          <option value="hot">🔥 Karšti (75+)</option>
+          <option value="warm">⚡ Vidutiniai (50-74)</option>
+          <option value="cold">❄️ Šalti (&lt;50)</option>
+        </select>
         <span id="leadsCount" class="text-muted text-sm" style="margin-left:auto"></span>
       </div>
 
@@ -420,6 +458,7 @@ select.form-control { cursor: pointer; }
             <tr>
               <th>#</th>
               <th>Įmonė</th>
+              <th>Balas</th>
               <th>Industrija</th>
               <th>Miestas</th>
               <th>Telefonas</th>
@@ -430,7 +469,7 @@ select.form-control { cursor: pointer; }
             </tr>
           </thead>
           <tbody id="leadsBody">
-            <tr><td colspan="9" class="text-muted" style="padding:32px;text-align:center">Kraunama...</td></tr>
+            <tr><td colspan="10" class="text-muted" style="padding:32px;text-align:center">Kraunama...</td></tr>
           </tbody>
         </table>
       </div>
@@ -543,6 +582,121 @@ select.form-control { cursor: pointer; }
       </div>
     </div>
 
+    <!-- ══ CRM PIPELINE PAGE ═══════════════════════════ -->
+    <div class="page" id="page-crm">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <h2 style="font-size:20px;font-weight:700;color:white">🔄 CRM Pipeline</h2>
+        <button onclick="loadCrmLeads()" class="btn btn-primary btn-sm">🔄 Atnaujinti</button>
+      </div>
+      <div class="kanban-board" id="kanbanBoard">
+        <div class="text-muted text-sm" style="padding:32px">Kraunama...</div>
+      </div>
+    </div>
+
+    <!-- ══ ANALYTICS PAGE ══════════════════════════════ -->
+    <div class="page" id="page-analytics">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <h2 style="font-size:20px;font-weight:700;color:white">📊 Analitika</h2>
+        <button onclick="loadAnalytics()" class="btn btn-primary btn-sm">🔄 Atnaujinti</button>
+      </div>
+      <div id="analyticsLoading" style="display:none;text-align:center;color:var(--muted);padding:48px">Kraunama...</div>
+      <div id="analyticsContent" style="display:none">
+        <!-- KPI cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px" id="analyticsKpis"></div>
+        <!-- Score distribution -->
+        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px" id="analyticsScores"></div>
+        <!-- Follow-up panel -->
+        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--text)">📅 Follow-up laiškai</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Automatiškai tikrina kas 30 min</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span id="dueFollowupBadge" style="display:none;font-size:14px;font-weight:700;color:#f59e0b"></span>
+              <button onclick="sendDueFollowups()" style="padding:6px 12px;background:#d97706;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">📤 Siųsti dabar</button>
+              <button onclick="checkReplies()" style="padding:6px 12px;background:#2563eb;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">📬 Tikrinti atsakymus</button>
+            </div>
+          </div>
+        </div>
+        <!-- Charts -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Leadai pagal šaltinį</div>
+            <canvas id="chart-source" height="200"></canvas>
+          </div>
+          <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">CRM etapai</div>
+            <canvas id="chart-stage" height="200"></canvas>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Populiariausios industrijos</div>
+          <canvas id="chart-industry" height="150"></canvas>
+        </div>
+      </div>
+      <div id="analyticsEmpty">
+        <div style="text-align:center;padding:48px">
+          <button onclick="loadAnalytics()" class="btn btn-primary">Užkrauti statistiką</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS PAGE ═══════════════════════════════ -->
+    <div class="page" id="page-settings">
+      <h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:24px">⚙️ Nustatymai</h2>
+      <div style="max-width:640px">
+
+        <div class="settings-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div>
+              <div style="font-weight:600;color:white">📱 Telegram Bot</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Gauk pranešimus kai leadai atidaro laiškus ir atsako</div>
+            </div>
+            <button onclick="testTelegram()" style="padding:6px 12px;background:#2563eb;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">🔔 Testuoti</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.8">
+            <div>1. Sukurk botą per @BotFather → gauk token</div>
+            <div>2. Railway Variables → <code style="background:var(--card2);padding:1px 6px;border-radius:4px">TELEGRAM_BOT_TOKEN</code></div>
+            <div>3. Parašyk botui /start → gauk chat ID</div>
+            <div>4. Railway Variables → <code style="background:var(--card2);padding:1px 6px;border-radius:4px">TELEGRAM_CHAT_ID</code></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div style="font-weight:600;color:white;margin-bottom:8px">🗺️ Google Maps API</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Geriausia įmonių paieškos priemonė — tikri duomenys, tikri kontaktai</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.8">
+            <div>1. Google Cloud Console → įjunk <strong>Places API</strong></div>
+            <div>2. Sukurk API raktą</div>
+            <div>3. Railway Variables → <code style="background:var(--card2);padding:1px 6px;border-radius:4px">GOOGLE_PLACES_API_KEY</code></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600;color:white">📅 Follow-up automatizavimas</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Po išsiųsto laiško: follow-up po 3, 7, 14 dienų</div>
+              <div style="font-size:12px;color:#4ade80;margin-top:4px">✅ Aktyvus — tikrina kas 30 min</div>
+            </div>
+            <button onclick="sendDueFollowups()" style="padding:6px 12px;background:#d97706;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">📤 Siųsti dabar</button>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:600;color:white">📬 Atsakymų tikrinimas</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Automatiškai tikrina info@astiscale.com kas 4 val.</div>
+            </div>
+            <button onclick="checkReplies()" style="padding:6px 12px;background:#2563eb;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">🔄 Tikrinti dabar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /layout -->
@@ -604,6 +758,14 @@ let allCities = [];
 let allIndustries = [];
 let selectedService = 'svetaine';
 
+// CRM state
+let crmLeads = [];
+let dueFollowupCount = 0;
+
+// Analytics state
+let analyticsData = null;
+let chartInstances = {};
+
 // ── Init ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('todayDate').textContent = new Date().toLocaleDateString('lt-LT', {weekday:'short',day:'numeric',month:'long'});
@@ -612,6 +774,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadRecentLeads();
   checkRunning();
   setInterval(checkRunning, 10000);
+  loadDueFollowups();
+  setInterval(() => loadDueFollowups(), 5 * 60 * 1000);
 });
 
 async function loadConfig() {
@@ -662,16 +826,31 @@ function selectService(svc) {
 }
 
 // ── Pages ─────────────────────────────────────────────
-const pageTitles = { dashboard:'Dashboard', leads:'Leadai', run:'Paleisti paiešką', history:'Istorija' };
+const pageTitles = {
+  dashboard: 'Dashboard',
+  leads: 'Leadai',
+  run: 'Paleisti paiešką',
+  history: 'Istorija',
+  crm: 'CRM Pipeline',
+  analytics: 'Analitika',
+  settings: 'Nustatymai'
+};
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item')[['dashboard','leads','run','history'].indexOf(name)]?.classList.add('active');
-  document.getElementById('pageTitle').textContent = pageTitles[name];
+  const pageEl = document.getElementById('page-' + name);
+  if (pageEl) pageEl.classList.add('active');
+  const pageOrder = ['dashboard','leads','run','history','crm','analytics','settings'];
+  const idx = pageOrder.indexOf(name);
+  const navItems = document.querySelectorAll('.nav-item');
+  if (idx >= 0 && navItems[idx]) navItems[idx].classList.add('active');
+  document.getElementById('pageTitle').textContent = pageTitles[name] || name;
   if (name === 'leads') { loadLeads(); }
   if (name === 'history') { loadHistory(); }
   if (name === 'dashboard') { loadStats(); }
+  if (name === 'crm') { loadCrmLeads(); }
+  if (name === 'analytics') { loadAnalytics(); }
 }
 
 // ── Stats / Dashboard ─────────────────────────────────
@@ -759,6 +938,7 @@ async function loadLeads() {
   const status   = document.getElementById('filterStatus').value;
   const service  = document.getElementById('filterService').value;
   const industry = document.getElementById('filterIndustry').value;
+  const scoreFilter = document.getElementById('filterScore').value;
 
   const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE });
   if (search)   params.set('search', search);
@@ -769,12 +949,21 @@ async function loadLeads() {
   if (industry) params.set('industry', industry);
 
   const tbody = document.getElementById('leadsBody');
-  tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--muted)">Kraunama...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--muted)">Kraunama...</td></tr>';
 
-  const leads = await fetch('/api/leads?' + params).then(r=>r.json());
+  let leads = await fetch('/api/leads?' + params).then(r=>r.json());
+
+  // Client-side score filter
+  if (scoreFilter === 'hot') {
+    leads = leads.filter(l => (l.score || 0) >= 75);
+  } else if (scoreFilter === 'warm') {
+    leads = leads.filter(l => (l.score || 0) >= 50 && (l.score || 0) < 75);
+  } else if (scoreFilter === 'cold') {
+    leads = leads.filter(l => (l.score || 0) < 50);
+  }
 
   if (!leads.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted)">Nėra leadų su šiais filtrais</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:32px;text-align:center;color:var(--muted)">Nėra leadų su šiais filtrais</td></tr>';
     document.getElementById('leadsCount').textContent = '0 leadų';
     return;
   }
@@ -791,8 +980,17 @@ function changePage(dir) {
   loadLeads();
 }
 
+function scoreClass(score) {
+  if (score >= 75) return 'score-hot';
+  if (score >= 50) return 'score-warm';
+  if (score >= 25) return 'score-ok';
+  return 'score-cold';
+}
+
 function leadRow(l, numbered=false, n=0) {
   const status = statusBadge(l.website_status);
+  const score = l.score || 0;
+  const scoreBadgeHtml = `<span class="score-badge ${scoreClass(score)}">${score}</span>`;
   return `<tr class="clickable" onclick="openLead(${l.id})">
     ${numbered ? `<td class="text-muted">${n}</td>` : ''}
     <td>
@@ -800,7 +998,10 @@ function leadRow(l, numbered=false, n=0) {
       ${l.vadovas ? `<div class="text-muted text-sm">${esc(l.vadovas)}</div>` : ''}
       ${l.contacted ? '<span class="badge badge-green" style="font-size:10px;margin-top:2px">susisiekta</span>' : ''}
       ${l.email_sent ? '<span class="badge badge-blue" style="font-size:10px;margin-top:2px">laiškas išsiųstas</span>' : ''}
+      ${l.open_count > 0 ? `<span style="font-size:11px;background:rgba(37,99,235,0.4);color:#93c5fd;padding:1px 6px;border-radius:4px;margin-left:2px">👁 ${l.open_count}</span>` : ''}
+      ${l.replied ? '<span style="font-size:11px;background:rgba(16,185,129,0.4);color:#6ee7b7;padding:1px 6px;border-radius:4px;margin-left:2px">💬</span>' : ''}
     </td>
+    ${numbered ? `<td>${scoreBadgeHtml}</td>` : ''}
     <td class="text-muted text-sm">${esc(l.industry)}</td>
     <td class="text-muted text-sm" style="text-transform:capitalize">${esc(l.city)}</td>
     <td>${l.phone ? `<a href="tel:${l.phone}" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation()">${esc(l.phone)}</a>` : '<span class="text-muted">—</span>'}</td>
@@ -1065,6 +1266,258 @@ async function loadHistory() {
       </td>
     </tr>`;
   }).join('');
+}
+
+// ── CRM Pipeline ─────────────────────────────────────
+const CRM_STAGES = [
+  { key: 'rastas',      label: '📋 Rastas' },
+  { key: 'susisiekta',  label: '📤 Susisiekta' },
+  { key: 'atidare',     label: '👁 Atidarė' },
+  { key: 'atsake',      label: '💬 Atsakė' },
+  { key: 'demo',        label: '📅 Demo' },
+  { key: 'pasiulymas',  label: '📝 Pasiūlymas' },
+  { key: 'laimeta',     label: '✅ Laimėta' },
+  { key: 'prarasta',    label: '❌ Prarasta' },
+];
+
+async function loadCrmLeads() {
+  const r = await fetch('/api/leads?limit=1000');
+  const d = await r.json();
+  crmLeads = d.leads || d || [];
+  renderKanban();
+}
+
+function crmByStage() {
+  const map = {};
+  CRM_STAGES.forEach(s => map[s.key] = []);
+  crmLeads.forEach(l => {
+    const s = l.crm_stage || 'rastas';
+    if (map[s]) map[s].push(l);
+    else map['rastas'].push(l);
+  });
+  return map;
+}
+
+function renderKanban() {
+  const board = document.getElementById('kanbanBoard');
+  if (!board) return;
+  const byStage = crmByStage();
+
+  board.innerHTML = CRM_STAGES.map(({ key, label }) => {
+    const leads = byStage[key] || [];
+    const cards = leads.map(lead => {
+      const score = lead.score || 0;
+      const cardClass = key === 'laimeta' ? 'kanban-card won' : key === 'prarasta' ? 'kanban-card lost' : 'kanban-card';
+      const stageOptions = CRM_STAGES.map(s =>
+        `<option value="${s.key}"${s.key === (lead.crm_stage || 'rastas') ? ' selected' : ''}>${s.label}</option>`
+      ).join('');
+      return `<div class="${cardClass}" onclick="openLead(${lead.id})">
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <span class="score-badge ${scoreClass(score)}">${score}</span>
+          <div style="flex:1;min-width:0">
+            <div style="color:white;font-size:12px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lead.company_name)}</div>
+            <div style="color:var(--muted);font-size:11px">${esc(lead.city || '')}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">
+          ${lead.email ? '<span style="font-size:11px;background:rgba(16,185,129,0.3);color:#6ee7b7;padding:1px 6px;border-radius:4px">📧</span>' : ''}
+          ${lead.open_count > 0 ? `<span style="font-size:11px;background:rgba(37,99,235,0.4);color:#93c5fd;padding:1px 6px;border-radius:4px">👁 ${lead.open_count}</span>` : ''}
+          ${lead.replied ? '<span style="font-size:11px;background:rgba(16,185,129,0.3);color:#6ee7b7;padding:1px 6px;border-radius:4px">💬</span>' : ''}
+        </div>
+        <div style="margin-top:8px">
+          <select onclick="event.stopPropagation()" onchange="moveCrmStage(${lead.id}, this.value)"
+                  style="width:100%;font-size:11px;background:var(--card2);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:2px 4px">
+            ${stageOptions}
+          </select>
+        </div>
+      </div>`;
+    }).join('');
+
+    const emptyMsg = leads.length === 0
+      ? '<div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">Nėra leadų</div>'
+      : '';
+
+    return `<div class="kanban-col">
+      <div class="kanban-col-header">
+        <span>${label}</span>
+        <span class="kanban-col-count">${leads.length}</span>
+      </div>
+      ${cards}
+      ${emptyMsg}
+    </div>`;
+  }).join('');
+}
+
+async function moveCrmStage(leadId, stage) {
+  await fetch(`/api/leads/${leadId}/stage`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({stage})
+  });
+  const lead = crmLeads.find(l => l.id === leadId);
+  if (lead) lead.crm_stage = stage;
+  renderKanban();
+}
+
+// ── Analytics ─────────────────────────────────────────
+async function loadAnalytics() {
+  document.getElementById('analyticsLoading').style.display = 'block';
+  document.getElementById('analyticsContent').style.display = 'none';
+  document.getElementById('analyticsEmpty').style.display = 'none';
+
+  try {
+    const r = await fetch('/api/analytics');
+    analyticsData = await r.json();
+    renderAnalytics();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('analyticsEmpty').style.display = 'block';
+  } finally {
+    document.getElementById('analyticsLoading').style.display = 'none';
+  }
+}
+
+function renderAnalytics() {
+  if (!analyticsData) return;
+  const d = analyticsData;
+
+  // KPI cards
+  document.getElementById('analyticsKpis').innerHTML = `
+    <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:4px">📋 Viso leadų</div>
+      <div style="font-size:32px;font-weight:700;color:white">${d.total || 0}</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:4px">📤 Išsiųsti laiškai</div>
+      <div style="font-size:32px;font-weight:700;color:#60a5fa">${d.contacted || 0}</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:4px">👁 Atidarymai</div>
+      <div style="font-size:32px;font-weight:700;color:#facc15">${d.opened || 0}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${d.open_rate || 0}% open rate</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:4px">💬 Atsakymai</div>
+      <div style="font-size:32px;font-weight:700;color:#4ade80">${d.replied || 0}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${d.reply_rate || 0}% reply rate</div>
+    </div>
+  `;
+
+  // Score distribution
+  document.getElementById('analyticsScores').innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">🎯 Leadų kokybė</div>
+    <div style="display:flex;gap:24px">
+      <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:#f87171">${d.score_hot || 0}</div><div style="font-size:11px;color:var(--muted)">🔥 Karšti (75+)</div></div>
+      <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:#f59e0b">${d.score_warm || 0}</div><div style="font-size:11px;color:var(--muted)">⚡ Vidutiniai</div></div>
+      <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:#60a5fa">${d.score_cold || 0}</div><div style="font-size:11px;color:var(--muted)">❄️ Šalti</div></div>
+    </div>
+  `;
+
+  // Update due followup badge in analytics
+  updateDueFollowupBadge();
+
+  document.getElementById('analyticsContent').style.display = 'block';
+
+  // Render charts after DOM update
+  setTimeout(() => renderCharts(), 50);
+}
+
+function renderCharts() {
+  // Destroy existing charts
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+  if (!analyticsData) return;
+  const d = analyticsData;
+
+  // Source chart
+  const srcEl = document.getElementById('chart-source');
+  if (srcEl && d.by_source && d.by_source.length) {
+    chartInstances.source = new Chart(srcEl, {
+      type: 'doughnut',
+      data: {
+        labels: d.by_source.map(s => s.src),
+        datasets: [{ data: d.by_source.map(s => s.cnt), backgroundColor: ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444'] }]
+      },
+      options: { plugins: { legend: { labels: { color:'#e5e7eb' } } } }
+    });
+  }
+
+  // Stage chart
+  const stageEl = document.getElementById('chart-stage');
+  if (stageEl && d.by_stage && d.by_stage.length) {
+    chartInstances.stage = new Chart(stageEl, {
+      type: 'bar',
+      data: {
+        labels: d.by_stage.map(s => s.stage),
+        datasets: [{ label: 'Leadai', data: d.by_stage.map(s => s.cnt), backgroundColor: '#8b5cf6' }]
+      },
+      options: { plugins: { legend: { display:false } }, scales: { x: { ticks: { color:'#9ca3af' } }, y: { ticks: { color:'#9ca3af' } } } }
+    });
+  }
+
+  // Industry chart
+  const indEl = document.getElementById('chart-industry');
+  if (indEl && d.by_industry && d.by_industry.length) {
+    chartInstances.industry = new Chart(indEl, {
+      type: 'bar',
+      data: {
+        labels: d.by_industry.map(i => i.industry),
+        datasets: [{ label: 'Leadai', data: d.by_industry.map(i => i.cnt), backgroundColor: '#3b82f6' }]
+      },
+      options: { indexAxis: 'y', plugins: { legend: { display:false } }, scales: { x: { ticks: { color:'#9ca3af' } }, y: { ticks: { color:'#9ca3af' } } } }
+    });
+  }
+}
+
+// ── Follow-ups ────────────────────────────────────────
+async function loadDueFollowups() {
+  try {
+    const r = await fetch('/api/followups/due-count');
+    const d = await r.json();
+    dueFollowupCount = d.count || 0;
+    updateDueFollowupBadge();
+  } catch {}
+}
+
+function updateDueFollowupBadge() {
+  const badge = document.getElementById('crmBadge');
+  if (badge) {
+    if (dueFollowupCount > 0) {
+      badge.textContent = dueFollowupCount;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  const analyticsBadge = document.getElementById('dueFollowupBadge');
+  if (analyticsBadge) {
+    if (dueFollowupCount > 0) {
+      analyticsBadge.textContent = dueFollowupCount + ' laukia';
+      analyticsBadge.style.display = 'inline';
+    } else {
+      analyticsBadge.style.display = 'none';
+    }
+  }
+}
+
+async function sendDueFollowups() {
+  await fetch('/api/followups/send-due', { method: 'POST' });
+  showToast('📤 Follow-up laiškai siunčiami...', 'ok');
+  setTimeout(() => loadDueFollowups(), 3000);
+}
+
+async function checkReplies() {
+  await fetch('/api/check-replies', { method: 'POST' });
+  showToast('📬 Tikrinamas paštas...', 'ok');
+}
+
+// ── Settings ──────────────────────────────────────────
+async function testTelegram() {
+  try {
+    const r = await fetch('/api/telegram/test', { method: 'POST' });
+    if (r.ok) showToast('✅ Telegram veikia!', 'ok');
+    else showToast('❌ Telegram nekonfigūruotas', 'err');
+  } catch { showToast('❌ Klaida', 'err'); }
 }
 
 // ── Utils ─────────────────────────────────────────────
