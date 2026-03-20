@@ -42,8 +42,8 @@ from config import (
 _DASH_USER = os.getenv("DASHBOARD_USER", "astiscale")
 _DASH_PASS = os.getenv("DASHBOARD_PASSWORD", "leads2025!")
 
-# Public paths — no login required (email tracking pixel must work without auth)
-_PUBLIC_PREFIXES = ("/track/",)
+# Public paths — no login required (tracking pixel + Railway healthcheck)
+_PUBLIC_PREFIXES = ("/track/", "/health")
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -151,6 +151,10 @@ _run_lock = threading.Lock()
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.get("/", response_class=HTMLResponse)
 def root():
