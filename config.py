@@ -86,7 +86,7 @@ SERVICES = {
     "chatbot": {
         "name":     "AI Chatbot",
         "lt":       "AI Pokalbių robotas",
-        "price":    "€300 įdiegimas + €149/mėn",
+        "price":    "€300 įdiegimas + €50/mėn",
         "pitch_lt": "atsako klientams 24/7 net kai esate užimti — automatiškai atsako į klausimus, renka kontaktus, siunčia rezervacijas",
     },
     "website": {
