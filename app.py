@@ -220,6 +220,8 @@ def bulk_send_emails(body: BulkSendRequest):
 
         try:
             ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
             with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=15) as server:
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.sendmail(SMTP_USER, lead["email"], msg.as_string())
@@ -289,6 +291,8 @@ def send_lead_email(lead_id: int):
     # Send via SSL (port 465)
     try:
         context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=15) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.sendmail(SMTP_USER, lead["email"], msg.as_string())
@@ -761,6 +765,8 @@ def _send_followup(lead: dict, num: int):
 
     try:
         ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=15) as s:
             s.login(SMTP_USER, SMTP_PASSWORD)
             s.sendmail(SMTP_USER, lead["email"], msg.as_string())
