@@ -34,11 +34,9 @@ def generate_followups(lead: dict, initial_email_body: str, service_target: str)
 
     # Build service-specific angle hints
     if service_target == "chatbot":
-        from processors.email_generator import get_demo_url
-        demo_url = get_demo_url(lead.get("industry", ""))
-        angle1 = f"Primink apie demo kurį paminėjai pirmame laiške. Paklausik ar spėjo pažiūrėti: {demo_url} — vienas klausimas, natūralus tonas, be spaudimo."
-        angle2 = f"Dabar galima paminėti kainą: €300 įdiegimas + €50/mėn. Palygink su viena prasta reklama arba vienu prarastu klientu. Siūlyk 15 min skambutį arba vėl pasiūlyk demo: {demo_url}"
-        angle3 = "Draugiškas breakup — supranti jei ne laikas. Lengvas FOMO: priimame tik 3 naujus klientus per mėnesį (rankinis konfigūravimas), liko viena vieta. Jei ne dabar — viskas gerai, bet verta turėti omenyje."
+        angle1 = "Paprastas priminimasas — ar turėjo progą pagalvoti apie pasiūlymą sukurti nemokamą demo? Vienas klausimas, be spaudimo, natūralus tonas."
+        angle2 = "Papasakok kaip demo kūrimas atrodo praktiškai: paruoši per 1-2 dienas, jie išbando, jei patinka — kalbame toliau. Kaina: €300 įdiegimas + €50/mėn — paminėk natūraliai, be spaudimo."
+        angle3 = "Draugiškas paskutinis laiškas — supranti jei ne laikas, palik duris atviras. Paminėk kad pasiūlymas sukurti nemokamą demo galioja bet kada."
     else:
         angle1 = "Vienas konkretus klausimas apie jų verslą + minkštas kvietimas."
         angle2 = "Pasiūlyk 15 min video demo kaip alternatyvą skambučiui. Paminėk konkretų privalumą jų industrijoje."

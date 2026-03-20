@@ -53,12 +53,13 @@ SERVICE_REQUIREMENTS = {
         "must_include": [
             "Konkreti pastaba apie JŲ verslą — ką pastebėjai apie jų svetainę, darbo laiką, ar kaip jie priima klientus",
             "Skausmo taškas: klientai rašo vakare/savaitgaliais kai verslas nedirba — niekas neatsakinėja",
-            "Sprendimas: AI asistentas — 2 sakiniai maks, be techninių detalių",
-            "CTA: pasiūlyti NEMOKAMĄ demo jau sukurtą panašiam verslui — įterpti DEMO_URL nuorodą kaip paspaudžiamą tekstą",
-            "NEKALBĖTI apie kainą pirmame laiške — tik demo, tik vertė",
+            "CTA: paklausti ar norėtų kad SUKURTUM jiems nemokamą AI asistento demo — specialiai pagal jų verslą, be jokių įsipareigojimų. Jei patiks — gali svarstyti toliau. Jei ne — nieko nepraranda.",
+            "NEKALBĖTI apie kainą pirmame laiške",
+            "Pabrėžti: demo sukuriamas BŪTENT jiems, ne bendras — pagal jų verslą, klausimus, stilių",
         ],
         "avoid": [
-            "Neminėk kainos (€300, €50) pirmame laiške",
+            "Neminėk kainos pirmame laiške",
+            "Nesiūlyk jau paruošto demo — KLAUSK ar sukurti jiems naują",
             "Neišgalvok statistikų ar skaičių apie jų verslą",
             "Neminėk kitų paslaugų (svetainės, reklamos)",
             "Nenaudok žodžių: 'inovatyvus', 'revoliucinis', 'sinergija'",
@@ -171,17 +172,10 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
         website_context = f"{lead.company_name} turi veikiančią svetainę."
         research_note = "Svetainė veikia — fokusas į konversiją ir klientų aptarnavimą."
 
-    # Get demo URL for chatbot emails
-    demo_url = get_demo_url(lead.industry) if (req_key == "chatbot" or service_target == "chatbot") else ""
-
-    # Replace DEMO_URL placeholder in must_include items
-    def resolve(text):
-        return text.replace("DEMO_URL", demo_url) if demo_url else text
-
     # Build requirements block for prompt
     must_block = ""
     if must_include:
-        items = "\n".join(f"  • {resolve(item)}" for item in must_include)
+        items = "\n".join(f"  • {item}" for item in must_include)
         must_block = f"\nŠIAME LAIŠKE PRIVALOMA ĮTRAUKTI:\n{items}"
 
     avoid_block = ""
@@ -189,7 +183,7 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
         items = "\n".join(f"  • {item}" for item in avoid)
         avoid_block = f"\nVENGTI:\n{items}"
 
-    demo_block = f"\nDEMO NUORODA (įterpk į CTA): {demo_url}" if demo_url else ""
+    demo_block = ""
 
     user_prompt = f"""Parašyk personalizuotą šaltą el. laišką:
 
