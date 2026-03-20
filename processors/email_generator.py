@@ -14,17 +14,51 @@ logger = logging.getLogger(__name__)
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
+_CHATBOT_BASE = "https://astiscale-chatbot.up.railway.app"
+
+# ── Industry → demo URL mapping (pick closest matching demo by feel/industry) ──
+INDUSTRY_DEMO_MAP = {
+    # Medical / clinical
+    "odontologas":              f"{_CHATBOT_BASE}/demo/sypsenaok",
+    "veterinarija":             f"{_CHATBOT_BASE}/demo/sypsenaok",
+    # Beauty / wellness
+    "grožio salonas":           f"{_CHATBOT_BASE}/demo/auraplus",
+    "kirpykla":                 f"{_CHATBOT_BASE}/demo/auraplus",
+    "masažo salonas":           f"{_CHATBOT_BASE}/demo/auraplus",
+    "nagų salonas":             f"{_CHATBOT_BASE}/demo/auraplus",
+    "sporto klubas":            f"{_CHATBOT_BASE}/demo/auraplus",
+    # Hospitality / F&B
+    "restoranas":               f"{_CHATBOT_BASE}/demo/auraplus",
+    "kavinė":                   f"{_CHATBOT_BASE}/demo/auraplus",
+    "viešbutis":                f"{_CHATBOT_BASE}/demo/auraplus",
+    # Retail / boutique
+    "picerija":                 f"{_CHATBOT_BASE}/demo/spkrautuvele",
+    # Professional B2B / services
+    "advokatų kontora":         f"{_CHATBOT_BASE}/demo/klinkera",
+    "buhalterinės paslaugos":   f"{_CHATBOT_BASE}/demo/klinkera",
+    "nekilnojamasis turtas":    f"{_CHATBOT_BASE}/demo/klinkera",
+    "saugos paslaugos":         f"{_CHATBOT_BASE}/demo/klinkera",
+    "statybos":                 f"{_CHATBOT_BASE}/demo/klinkera",
+    "interjero dizainas":       f"{_CHATBOT_BASE}/demo/klinkera",
+}
+_DEFAULT_DEMO = f"{_CHATBOT_BASE}/demo/klinkera"
+
+def get_demo_url(industry: str) -> str:
+    """Return the best-matching demo URL for this industry."""
+    return INDUSTRY_DEMO_MAP.get(industry.lower(), _DEFAULT_DEMO)
+
 # ── Per-service required elements (what Claude MUST include in every email) ────
 SERVICE_REQUIREMENTS = {
     "chatbot": {
         "must_include": [
             "Konkreti pastaba apie JŲ verslą — ką pastebėjai apie jų svetainę, darbo laiką, ar kaip jie priima klientus",
             "Skausmo taškas: klientai rašo vakare/savaitgaliais kai verslas nedirba — niekas neatsakinėja",
-            "Sprendimas: AI asistentas atsako 24/7 automatiškai, renka kontaktus, siunčia rezervacijas",
-            "Kaina: €300 vienkartinis įdiegimas + €50/mėn",
-            "CTA: 15 min skambutis arba galimybė pamatyti demo",
+            "Sprendimas: AI asistentas — 2 sakiniai maks, be techninių detalių",
+            "CTA: pasiūlyti NEMOKAMĄ demo jau sukurtą panašiam verslui — įterpti DEMO_URL nuorodą kaip paspaudžiamą tekstą",
+            "NEKALBĖTI apie kainą pirmame laiške — tik demo, tik vertė",
         ],
         "avoid": [
+            "Neminėk kainos (€300, €50) pirmame laiške",
             "Neišgalvok statistikų ar skaičių apie jų verslą",
             "Neminėk kitų paslaugų (svetainės, reklamos)",
             "Nenaudok žodžių: 'inovatyvus', 'revoliucinis', 'sinergija'",
@@ -72,29 +106,30 @@ SERVICE_REQUIREMENTS = {
 }
 
 # ── System prompt (stays cached) ──────────────────────────────────────────────
-SYSTEM_PROMPT = f"""Tu esi {AGENT_NAME} iš {AGENCY_NAME} — Lietuvos AI ir skaitmeninės rinkodaros agentūros.
-Rašai TIKRUS šaltus el. laiškus realiems Lietuvos verslininkams.
+SYSTEM_PROMPT = f"""Tu esi {AGENT_NAME} iš {AGENCY_NAME} — Lietuvos AI agentūros įkūrėjas.
+Rašai TIKRUS šaltus el. laiškus realiems Lietuvos verslininkams LIETUVIŠKAI.
 
-ESMINIS PRINCIPAS: Kiekvienas laiškas turi atrodyti kaip TU asmeniškai pažiūrejai į JŲ verslą ir parašei jiems — ne šablonas, ne masinė išsiuntinėjimas.
+ESMINIS PRINCIPAS: Laiškas turi atrodyti kaip TU asmeniškai pažiūrejai į JŲ verslą ir parašei jiems — ne šablonas, ne masinė siuntinėjimas. Natūrali lietuvių kalba, kaip rašytų tikras lietuvis.
 
 PRIVALOMA STRUKTŪRA:
-1. Tema: intriguojanti, konkreti, iki 55 simbolių — klausimas arba pastebėjimas apie JŲ verslą
+1. Tema: konkreti, iki 55 simbolių — klausimas arba pastebėjimas apie JŲ verslą
 2. Kreipinys: vardu jei žinomas, "Laba diena!" jei ne
-3. Atidarymas (1-2 sakiniai): konkreti, tikra pastaba apie JŲ verslą — ką pastebėjai, ką patikrinai
-4. Problemos sakinys (1-2 sakiniai): logiškas ryšys tarp pastebėjimo ir prarastos galimybės
-5. Sprendimas (2-3 sakiniai): ką siūlai, kaip tai veikia, kaina — AIŠKIAI ir be jargono
-6. CTA (1 sakinys): vienas kvietimas — 15 min skambutis ar demo
+3. Atidarymas (1-2 sakiniai): konkreti pastaba apie JŲ verslą — ką pastebėjai
+4. Problemos sakinys (1-2 sakiniai): prarastos galimybės — natūraliai, be dramos
+5. Sprendimas (1-2 sakiniai): trumpai ką siūlai — BEZ KAINOS pirmame laiške
+6. CTA: pasiūlyk pažiūrėti NEMOKAMĄ demo — įdėk DEMO_URL nuorodą tekste
 7. Parašas: {AGENT_NAME} | {AGENCY_NAME} | {AGENCY_EMAIL} | {AGENCY_WEBSITE}
 
-TONO TAISYKLĖS:
-- Rašyk kaip žmogus žmogui — šiltas, paprastas, tikras
-- Jokių buzzwordų: "inovatyvus", "revoliucinis", "holistinis", "sinergija", "ekosistema"
-- Jokių išgalvotų faktų, statistikų ar skaičių apie jų įmonę
-- Jokių frazių: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe"
-- Ilgis: 130–190 žodžių. NE ILGIAU.
-- Siūlyk TIK VIENĄ paslaugą — tą kuri nurodyta
+LIETUVIŠKOS KALBOS TAISYKLĖS (LABAI SVARBU):
+- Rašyk kaip tikras lietuvis — natūralūs sakiniai, teisingi linksniai, taisyklinga rašyba
+- Naudok lietuviškus žodžius: "puiku" ne "ok", "pavyzdžiui" ne "pvz.", taisyklingos galūnės
+- Jokio vertimo iš anglų — jokie "šitas yra geras" tipo konstrukcijos
+- Tonas: šiltas, draugiškas, tikras — kaip žinutė pažįstamam verslininkui
+- Jokių buzzwordų: "inovatyvus", "revoliucinis", "holistinis", "sinergija"
+- Jokių frazių: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe", "Esu įsitikinęs"
+- Ilgis: 110–160 žodžių. NE ILGIAU.
 
-Grąžink TIK laišką — be komentarų, be metaduomenų, be paaiškinimų."""
+Grąžink TIK laišką — be komentarų, be metaduomenų."""
 
 
 def generate_email(lead, service_keys: list[str], service_target: str = "") -> str:
@@ -136,16 +171,25 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
         website_context = f"{lead.company_name} turi veikiančią svetainę."
         research_note = "Svetainė veikia — fokusas į konversiją ir klientų aptarnavimą."
 
+    # Get demo URL for chatbot emails
+    demo_url = get_demo_url(lead.industry) if (req_key == "chatbot" or service_target == "chatbot") else ""
+
+    # Replace DEMO_URL placeholder in must_include items
+    def resolve(text):
+        return text.replace("DEMO_URL", demo_url) if demo_url else text
+
     # Build requirements block for prompt
     must_block = ""
     if must_include:
-        items = "\n".join(f"  • {item}" for item in must_include)
+        items = "\n".join(f"  • {resolve(item)}" for item in must_include)
         must_block = f"\nŠIAME LAIŠKE PRIVALOMA ĮTRAUKTI:\n{items}"
 
     avoid_block = ""
     if avoid:
         items = "\n".join(f"  • {item}" for item in avoid)
         avoid_block = f"\nVENGTI:\n{items}"
+
+    demo_block = f"\nDEMO NUORODA (įterpk į CTA): {demo_url}" if demo_url else ""
 
     user_prompt = f"""Parašyk personalizuotą šaltą el. laišką:
 
@@ -161,6 +205,7 @@ SIŪLOMA PASLAUGA (TIKTAI ŠI):
   {service_text}
 {must_block}
 {avoid_block}
+{demo_block}
 
 Formato reikalavimai:
 Tema: [konkreti tema iki 55 simbolių]
