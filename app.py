@@ -43,7 +43,7 @@ _DASH_USER = os.getenv("DASHBOARD_USER", "astiscale")
 _DASH_PASS = os.getenv("DASHBOARD_PASSWORD", "leads2025!")
 
 # Public paths — no login required (tracking pixel + Railway healthcheck)
-_PUBLIC_PREFIXES = ("/track/", "/health")
+_PUBLIC_PREFIXES = ("/track/", "/health", "/api/stats")
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
