@@ -133,13 +133,15 @@ def leads(
     status: str = Query(None),
     service_target: str = Query(None),
     search: str = Query(None),
+    show_duplicates: bool = Query(False),
     limit: int = Query(100),
     offset: int = Query(0),
 ):
     return db.get_leads(
         run_date=date, city=city, industry=industry,
         status=status, service_target=service_target,
-        search=search, limit=limit, offset=offset
+        search=search, show_duplicates=show_duplicates,
+        limit=limit, offset=offset
     )
 
 
@@ -155,6 +157,89 @@ def lead_detail(lead_id: int):
 def mark_contacted(lead_id: int, contacted: bool = True, notes: str = ""):
     db.update_lead_contacted(lead_id, contacted, notes)
     return {"ok": True}
+
+
+class EditLeadRequest(BaseModel):
+    company_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.patch("/api/leads/{lead_id}/edit")
+def edit_lead(lead_id: int, body: EditLeadRequest):
+    if not db.get_lead(lead_id):
+        raise HTTPException(404, "Lead not found")
+    db.update_lead_edit(lead_id, body.company_name, body.email, body.phone, body.notes)
+    return {"ok": True}
+
+
+class BulkSendRequest(BaseModel):
+    lead_ids: list
+
+@app.post("/api/leads/bulk-send")
+def bulk_send_emails(body: BulkSendRequest):
+    """Send email drafts to multiple leads at once."""
+    if not SMTP_PASSWORD:
+        raise HTTPException(500, "SMTP slaptažodis nenurodytas")
+
+    results = {"sent": [], "failed": [], "skipped": []}
+
+    for lead_id in body.lead_ids:
+        lead = db.get_lead(lead_id)
+        if not lead:
+            results["failed"].append({"id": lead_id, "reason": "Not found"})
+            continue
+        if not lead.get("email"):
+            results["skipped"].append({"id": lead_id, "company": lead.get("company_name"), "reason": "Nėra el. pašto"})
+            continue
+        if lead.get("email_sent"):
+            results["skipped"].append({"id": lead_id, "company": lead.get("company_name"), "reason": "Jau išsiųsta"})
+            continue
+        if not lead.get("email_draft"):
+            results["skipped"].append({"id": lead_id, "company": lead.get("company_name"), "reason": "Nėra juodraščio"})
+            continue
+
+        draft = lead["email_draft"]
+        subject = f"{AGENCY_NAME} — {lead['company_name']}"
+        body_text = draft
+        lines = draft.split("\n")
+        if lines and lines[0].startswith("Tema:"):
+            subject = lines[0].replace("Tema:", "").strip()
+            body_text = "\n".join(lines[1:]).strip()
+
+        dashboard_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", "https://astiscalelead.up.railway.app")
+        pixel = f'<img src="{dashboard_url}/track/{lead_id}.gif" width="1" height="1" style="display:none">'
+        html_body = f"<html><body>{body_text.replace(chr(10), '<br>')}{pixel}</body></html>"
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{AGENT_NAME} | {AGENCY_NAME} <{SMTP_USER}>"
+        msg["To"] = lead["email"]
+        msg.attach(MIMEText(body_text, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        try:
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=15) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(SMTP_USER, lead["email"], msg.as_string())
+            db.mark_email_sent(lead_id)
+            try:
+                from processors.followup_generator import generate_followups
+                b1, b2, b3 = generate_followups(lead, body_text, lead.get("service_target", ""))
+                db.save_followup_emails(lead_id, b1, b2, b3)
+            except Exception:
+                pass
+            try:
+                from processors.lead_scorer import score_lead
+                db.update_lead_score(lead_id, score_lead(dict(lead)))
+            except Exception:
+                pass
+            results["sent"].append({"id": lead_id, "company": lead.get("company_name")})
+        except Exception as e:
+            results["failed"].append({"id": lead_id, "company": lead.get("company_name"), "reason": str(e)})
+
+    return results
 
 
 # ── API: Send email ───────────────────────────────────────────────────────────
@@ -521,6 +606,12 @@ def _do_run(run_id: int, req: RunRequest):
         except Exception as e:
             log(f"Excel klaida: {e}")
 
+        # Mark cross-run duplicates
+        try:
+            db.dedup_after_run(run_id)
+        except Exception as e:
+            log(f"Dedup klaida: {e}")
+
         log(f"\n✅ Baigta! {len(processed)} leadų išsaugota.")
         db.finish_run(run_id, len(processed), "completed")
 
@@ -597,9 +688,26 @@ def _imap_check_replies():
                 _, msg_data = mail.fetch(num, "(RFC822)")
                 msg = email_lib.message_from_bytes(msg_data[0][1])
                 from_addr = msg.get("From", "").lower()
+
+                # Extract plain text reply body
+                reply_text = ""
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        if part.get_content_type() == "text/plain":
+                            try:
+                                reply_text = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                            except Exception:
+                                pass
+                            break
+                else:
+                    try:
+                        reply_text = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+                    except Exception:
+                        pass
+
                 for lead_email, lead in lead_email_map.items():
                     if lead_email and lead_email in from_addr and not lead.get("replied"):
-                        db.mark_replied(lead["id"])
+                        db.mark_reply_body(lead["id"], reply_text.strip())
                         try:
                             import telegram_bot
                             telegram_bot.notify_reply_received(lead.get("company_name", ""), lead_email)

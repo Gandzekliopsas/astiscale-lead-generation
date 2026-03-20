@@ -352,6 +352,10 @@ select.form-control { cursor: pointer; }
     <div class="nav-item" onclick="showPage('leads')">
       <span class="nav-icon">🎯</span> Leadai
     </div>
+    <div class="nav-item" id="navHot" onclick="showHotLeads()">
+      <span class="nav-icon">🔥</span> Karšti leadai
+      <span id="hotBadge" style="margin-left:auto;background:#ef4444;color:white;font-size:10px;border-radius:10px;padding:1px 7px;display:none"></span>
+    </div>
     <div class="nav-item" onclick="showPage('run')">
       <span class="nav-icon">⚡</span> Paleisti paiešką
     </div>
@@ -452,10 +456,29 @@ select.form-control { cursor: pointer; }
         <span id="leadsCount" class="text-muted text-sm" style="margin-left:auto"></span>
       </div>
 
+      <!-- Bulk action bar -->
+      <div id="bulkBar" style="display:flex;align-items:center;gap:12px;margin-bottom:10px;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:8px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" style="width:15px;height:15px;accent-color:var(--accent)">
+          <span style="font-size:13px">Pasirinkti visus</span>
+        </label>
+        <span id="selectedCount" class="text-muted text-sm">0 pasirinkta</span>
+        <button class="btn btn-primary btn-sm" id="bulkSendBtn" onclick="bulkSendEmails()" disabled style="margin-left:8px">
+          📤 Siųsti pasirinktus
+        </button>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
+            <input type="checkbox" id="showDuplicates" onchange="loadLeads()" style="accent-color:var(--accent)">
+            Rodyti dublikatus
+          </label>
+        </div>
+      </div>
+
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
+              <th style="width:32px"></th>
               <th>#</th>
               <th>Įmonė</th>
               <th>Balas</th>
@@ -469,7 +492,7 @@ select.form-control { cursor: pointer; }
             </tr>
           </thead>
           <tbody id="leadsBody">
-            <tr><td colspan="10" class="text-muted" style="padding:32px;text-align:center">Kraunama...</td></tr>
+            <tr><td colspan="11" class="text-muted" style="padding:32px;text-align:center">Kraunama...</td></tr>
           </tbody>
         </table>
       </div>
@@ -717,6 +740,8 @@ select.form-control { cursor: pointer; }
       <div class="tabs">
         <div class="tab active" onclick="switchTab('email')">📧 El. laiškas</div>
         <div class="tab" onclick="switchTab('call')">📞 Skambučio scenarijus</div>
+        <div class="tab" id="tabReplyBtn" onclick="switchTab('reply')" style="display:none">💬 Atsakymas</div>
+        <div class="tab" onclick="switchTab('edit')">✏️ Redaguoti</div>
       </div>
 
       <div id="tabEmail">
@@ -730,6 +755,30 @@ select.form-control { cursor: pointer; }
           <div class="text-box" id="callBox"></div>
           <button class="copy-btn" onclick="copyText('callBox')">Kopijuoti</button>
         </div>
+      </div>
+      <div id="tabReply" style="display:none">
+        <div class="text-box" id="replyBox" style="background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.3);white-space:pre-wrap"></div>
+      </div>
+      <div id="tabEdit" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Įmonės pavadinimas</label>
+            <input id="editCompany" type="text" style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;font-family:inherit">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">El. paštas</label>
+            <input id="editEmail" type="email" style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;font-family:inherit">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Telefonas</label>
+            <input id="editPhone" type="text" style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;font-family:inherit">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Pastabos</label>
+            <input id="editNotes" type="text" style="width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;font-family:inherit">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveLeadEdit()">💾 Išsaugoti pakeitimus</button>
       </div>
 
       <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap">
@@ -776,6 +825,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   setInterval(checkRunning, 10000);
   loadDueFollowups();
   setInterval(() => loadDueFollowups(), 5 * 60 * 1000);
+  updateHotBadge();
+  setInterval(updateHotBadge, 5 * 60 * 1000);
 });
 
 async function loadConfig() {
@@ -940,6 +991,7 @@ async function loadLeads() {
   const industry = document.getElementById('filterIndustry').value;
   const scoreFilter = document.getElementById('filterScore').value;
 
+  const showDups = document.getElementById('showDuplicates')?.checked || false;
   const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE });
   if (search)   params.set('search', search);
   if (date)     params.set('date', date);
@@ -947,9 +999,10 @@ async function loadLeads() {
   if (status)   params.set('status', status);
   if (service)  params.set('service_target', service);
   if (industry) params.set('industry', industry);
+  if (showDups) params.set('show_duplicates', 'true');
 
   const tbody = document.getElementById('leadsBody');
-  tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--muted)">Kraunama...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--muted)">Kraunama...</td></tr>';
 
   let leads = await fetch('/api/leads?' + params).then(r=>r.json());
 
@@ -963,12 +1016,14 @@ async function loadLeads() {
   }
 
   if (!leads.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:32px;text-align:center;color:var(--muted)">Nėra leadų su šiais filtrais</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:32px;text-align:center;color:var(--muted)">Nėra leadų su šiais filtrais</td></tr>';
     document.getElementById('leadsCount').textContent = '0 leadų';
+    updateSelectedCount();
     return;
   }
 
   tbody.innerHTML = leads.map((l,i) => leadRow(l, true, currentPage*PAGE_SIZE+i+1)).join('');
+  updateSelectedCount();
   document.getElementById('leadsCount').textContent = leads.length + ' leadų';
   document.getElementById('prevPage').disabled = currentPage === 0;
   document.getElementById('nextPage').disabled = leads.length < PAGE_SIZE;
@@ -991,13 +1046,19 @@ function leadRow(l, numbered=false, n=0) {
   const status = statusBadge(l.website_status);
   const score = l.score || 0;
   const scoreBadgeHtml = `<span class="score-badge ${scoreClass(score)}">${score}</span>`;
-  return `<tr class="clickable" onclick="openLead(${l.id})">
+  const isDup = l.is_duplicate ? 'opacity:.55;' : '';
+  const canSend = l.email && l.email_draft && !l.email_sent;
+  return `<tr class="clickable" onclick="openLead(${l.id})" style="${isDup}">
+    <td onclick="event.stopPropagation()" style="text-align:center">
+      ${canSend ? `<input type="checkbox" class="lead-cb" data-id="${l.id}" onchange="updateSelectedCount()" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer">` : ''}
+    </td>
     ${numbered ? `<td class="text-muted">${n}</td>` : ''}
     <td>
       <div style="font-weight:600;font-size:13px">${esc(l.company_name)}</div>
       ${l.vadovas ? `<div class="text-muted text-sm">${esc(l.vadovas)}</div>` : ''}
+      ${l.is_duplicate ? '<span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.05);padding:1px 5px;border-radius:3px">dublikatas</span>' : ''}
       ${l.contacted ? '<span class="badge badge-green" style="font-size:10px;margin-top:2px">susisiekta</span>' : ''}
-      ${l.email_sent ? '<span class="badge badge-blue" style="font-size:10px;margin-top:2px">laiškas išsiųstas</span>' : ''}
+      ${l.email_sent ? '<span class="badge badge-blue" style="font-size:10px;margin-top:2px">išsiųsta</span>' : ''}
       ${l.open_count > 0 ? `<span style="font-size:11px;background:rgba(37,99,235,0.4);color:#93c5fd;padding:1px 6px;border-radius:4px;margin-left:2px">👁 ${l.open_count}</span>` : ''}
       ${l.replied ? '<span style="font-size:11px;background:rgba(16,185,129,0.4);color:#6ee7b7;padding:1px 6px;border-radius:4px;margin-left:2px">💬</span>' : ''}
     </td>
@@ -1011,7 +1072,6 @@ function leadRow(l, numbered=false, n=0) {
     ${numbered ? `<td onclick="event.stopPropagation()">
       <div style="display:flex;gap:6px">
         <button class="btn btn-ghost btn-sm" onclick="openLead(${l.id})">👁</button>
-        ${l.email ? `<a href="mailto:${l.email}?subject=${encodeURIComponent(emailSubject(l.email_draft))}&body=${encodeURIComponent(emailBody(l.email_draft))}" class="btn btn-primary btn-sm" title="Siųsti el. laišką">📧</a>` : ''}
       </div>
     </td>` : ''}
   </tr>`;
@@ -1063,6 +1123,21 @@ async function openLead(id) {
   document.getElementById('emailBox').textContent = l.email_draft || '(Laiškas nebuvo sugeneruotas)';
   document.getElementById('callBox').textContent = l.cold_call_script || '—';
 
+  // Reply tab
+  const replyBtn = document.getElementById('tabReplyBtn');
+  if (l.reply_body) {
+    replyBtn.style.display = '';
+    document.getElementById('replyBox').textContent = l.reply_body;
+  } else {
+    replyBtn.style.display = 'none';
+  }
+
+  // Edit tab fields
+  document.getElementById('editCompany').value = l.company_name || '';
+  document.getElementById('editEmail').value = l.email || '';
+  document.getElementById('editPhone').value = l.phone || '';
+  document.getElementById('editNotes').value = l.notes || '';
+
   const btn = document.getElementById('contactedBtn');
   btn.textContent = l.contacted ? '✓ Susisiekta' : '○ Pažymėti kaip susisiekta';
   btn.className = 'btn btn-sm ' + (l.contacted ? 'badge-green btn-ghost' : 'btn-ghost');
@@ -1098,9 +1173,12 @@ function closeModal(e) {
 }
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['email','call'][i]===tab));
+  const tabs = ['email','call','reply','edit'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===tab));
   document.getElementById('tabEmail').style.display = tab==='email'?'block':'none';
   document.getElementById('tabCall').style.display  = tab==='call' ?'block':'none';
+  document.getElementById('tabReply').style.display = tab==='reply'?'block':'none';
+  document.getElementById('tabEdit').style.display  = tab==='edit' ?'block':'none';
 }
 
 async function toggleContacted() {
@@ -1524,6 +1602,99 @@ async function testTelegram() {
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Bulk select ───────────────────────────────────────
+function toggleSelectAll() {
+  const checked = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.lead-cb').forEach(cb => cb.checked = checked);
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const cbs = document.querySelectorAll('.lead-cb:checked');
+  const count = cbs.length;
+  document.getElementById('selectedCount').textContent = count + ' pasirinkta';
+  document.getElementById('bulkSendBtn').disabled = count === 0;
+}
+
+async function bulkSendEmails() {
+  const ids = [...document.querySelectorAll('.lead-cb:checked')].map(cb => parseInt(cb.dataset.id));
+  if (!ids.length) return;
+
+  const btn = document.getElementById('bulkSendBtn');
+  btn.disabled = true;
+  btn.textContent = `⏳ Siunčiama 0/${ids.length}...`;
+
+  try {
+    const r = await fetch('/api/leads/bulk-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_ids: ids })
+    });
+    const d = await r.json();
+    const sent = d.sent?.length || 0;
+    const failed = d.failed?.length || 0;
+    const skipped = d.skipped?.length || 0;
+    showToast(`✅ Išsiųsta: ${sent} | ⏭ Praleista: ${skipped} | ❌ Klaida: ${failed}`, sent > 0 ? 'ok' : 'err');
+    loadLeads();
+  } catch (e) {
+    showToast('❌ Klaida siunčiant', 'err');
+  } finally {
+    btn.textContent = '📤 Siųsti pasirinktus';
+    btn.disabled = false;
+    document.getElementById('selectAll').checked = false;
+  }
+}
+
+// ── Hot leads quick view ──────────────────────────────
+function showHotLeads() {
+  showPage('leads');
+  document.getElementById('filterScore').value = 'hot';
+  loadLeads();
+  // Highlight hot nav item
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('navHot').classList.add('active');
+}
+
+// Update hot badge on dashboard load
+async function updateHotBadge() {
+  try {
+    const r = await fetch('/api/leads?limit=200&show_duplicates=false');
+    const leads = await r.json();
+    const hot = leads.filter(l => (l.score || 0) >= 75 && !l.email_sent).length;
+    const badge = document.getElementById('hotBadge');
+    if (badge) {
+      badge.textContent = hot;
+      badge.style.display = hot > 0 ? '' : 'none';
+    }
+  } catch {}
+}
+
+// ── Lead editing ──────────────────────────────────────
+async function saveLeadEdit() {
+  if (!currentLeadId) return;
+  const body = {
+    company_name: document.getElementById('editCompany').value,
+    email: document.getElementById('editEmail').value,
+    phone: document.getElementById('editPhone').value,
+    notes: document.getElementById('editNotes').value,
+  };
+  try {
+    const r = await fetch(`/api/leads/${currentLeadId}/edit`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      showToast('✅ Išsaugota', 'ok');
+      openLead(currentLeadId); // refresh modal
+    } else {
+      showToast('❌ Klaida išsaugant', 'err');
+    }
+  } catch {
+    showToast('❌ Klaida', 'err');
+  }
 }
 </script>
 </body>

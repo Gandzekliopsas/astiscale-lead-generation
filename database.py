@@ -122,6 +122,8 @@ def _migrate():
     _add_col("leads", "google_maps_url TEXT DEFAULT ''")
     _add_col("leads", "rating REAL DEFAULT 0")
     _add_col("leads", "review_count INTEGER DEFAULT 0")
+    _add_col("leads", "reply_body TEXT DEFAULT ''")
+    _add_col("leads", "is_duplicate INTEGER DEFAULT 0")
 
 
 # ── Leads ─────────────────────────────────────────────────────────────────────
@@ -165,6 +167,7 @@ def get_leads(
     status: str = None,
     service_target: str = None,
     search: str = None,
+    show_duplicates: bool = False,
     limit: int = 200,
     offset: int = 0,
 ) -> list:
@@ -184,6 +187,8 @@ def get_leads(
     if search:
         filters.append("(company_name LIKE ? OR email LIKE ? OR phone LIKE ?)")
         params += [f"%{search}%"] * 3
+    if not show_duplicates:
+        filters.append("COALESCE(is_duplicate, 0) = 0")
 
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
     params += [limit, offset]
@@ -312,6 +317,66 @@ def update_lead_score(lead_id: int, score: int):
     with get_db() as db:
         db.execute("UPDATE leads SET score=? WHERE id=?", (score, lead_id))
         db.commit()
+
+
+def update_lead_edit(lead_id: int, company_name: str = None, email: str = None,
+                     phone: str = None, notes: str = None):
+    """Edit basic lead fields from the UI."""
+    fields, params = [], []
+    if company_name is not None:
+        fields.append("company_name=?"); params.append(company_name)
+    if email is not None:
+        fields.append("email=?"); params.append(email)
+    if phone is not None:
+        fields.append("phone=?"); params.append(phone)
+    if notes is not None:
+        fields.append("notes=?"); params.append(notes)
+    if not fields:
+        return
+    params.append(lead_id)
+    with get_db() as db:
+        db.execute(f"UPDATE leads SET {', '.join(fields)} WHERE id=?", params)
+
+
+def mark_reply_body(lead_id: int, body: str):
+    """Store the text of a reply received via IMAP."""
+    with get_db() as db:
+        db.execute(
+            "UPDATE leads SET reply_body=?, replied=1, replied_at=datetime('now'), crm_stage='atsake' WHERE id=?",
+            (body[:4000], lead_id)
+        )
+        db.commit()
+
+
+def dedup_after_run(run_id: int):
+    """Mark newly inserted leads as duplicates if same company+city was already emailed before this run."""
+    with get_db() as db:
+        # Get leads from this run
+        new_leads = db.execute(
+            "SELECT id, company_name, city FROM leads WHERE id IN "
+            "(SELECT id FROM leads WHERE rowid > (SELECT MIN(rowid) FROM leads WHERE "
+            "id IN (SELECT id FROM leads ORDER BY id DESC LIMIT 9999)))"
+        ).fetchall()
+
+        # Simpler: get run start time from runs table then find duplicates
+        run = db.execute("SELECT started_at FROM runs WHERE id=?", (run_id,)).fetchone()
+        if not run:
+            return
+        started_at = run[0]
+
+        # Find leads from this run that have a prior email_sent=1 lead with same company+city
+        db.execute("""
+            UPDATE leads SET is_duplicate=1
+            WHERE id IN (
+                SELECT n.id FROM leads n
+                INNER JOIN leads o ON
+                    LOWER(TRIM(o.company_name)) = LOWER(TRIM(n.company_name))
+                    AND LOWER(TRIM(o.city)) = LOWER(TRIM(n.city))
+                    AND o.email_sent = 1
+                    AND o.id != n.id
+                WHERE n.created_at >= ? AND n.is_duplicate = 0
+            )
+        """, (started_at,))
 
 
 def get_due_followups() -> list:
