@@ -16,10 +16,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+import base64
+import hashlib
+import secrets
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Query, Depends, Request
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -34,9 +38,48 @@ from config import (
     AGENCY_NAME, AGENT_NAME, SERVICE_TARGETS,
 )
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
+_DASH_USER = os.getenv("DASHBOARD_USER", "astiscale")
+_DASH_PASS = os.getenv("DASHBOARD_PASSWORD", "leads2025!")
+
+# Public paths — no login required (email tracking pixel must work without auth)
+_PUBLIC_PREFIXES = ("/track/",)
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Allow public paths through without auth
+        if any(request.url.path.startswith(p) for p in _PUBLIC_PREFIXES):
+            return await call_next(request)
+
+        # Check Authorization header
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+                username, _, password = decoded.partition(":")
+                user_ok = secrets.compare_digest(
+                    hashlib.sha256(username.encode()).digest(),
+                    hashlib.sha256(_DASH_USER.encode()).digest(),
+                )
+                pass_ok = secrets.compare_digest(
+                    hashlib.sha256(password.encode()).digest(),
+                    hashlib.sha256(_DASH_PASS.encode()).digest(),
+                )
+                if user_ok and pass_ok:
+                    return await call_next(request)
+            except Exception:
+                pass
+
+        # Not authenticated — prompt browser login dialog
+        return Response(
+            content="Unauthorized",
+            status_code=401,
+            headers={"WWW-Authenticate": "Basic realm='AstiScale Leads'"},
+        )
+
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="AstiScale Lead Generation Dashboard")
-
+app.add_middleware(BasicAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -634,7 +677,6 @@ async def track_pixel(lead_id: int, background_tasks: BackgroundTasks):
     """1x1 transparent GIF — loads when email client renders images."""
     GIF = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
     background_tasks.add_task(_on_email_open, lead_id)
-    from fastapi.responses import Response
     return Response(content=GIF, media_type="image/gif", headers={
         "Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"
     })
