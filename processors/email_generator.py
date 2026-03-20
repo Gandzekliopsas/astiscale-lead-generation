@@ -84,6 +84,27 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
         tgt = SERVICE_TARGETS[service_target]
         service_context = f"PAGRINDINIS TIKSLAS: {tgt['label']} — {tgt['description']}"
 
+    # Chatbot-specific hooks: social proof + angle guidance
+    chatbot_guidance = ""
+    if service_target == "chatbot":
+        chatbot_guidance = """
+CHATBOT KAMPAS — NAUDOK ŠIUOS KABLIUKUS:
+- Pabrėžk: daugelis klientų rašo vakarais/savaitgaliais kai verslas neveikia — chatbot atsako iš karto
+- Konkretus ROI: vidutiniškai 60-80% dažniausių klausimų automatizuojama
+- Kaina: €300 vienkartinis įdiegimas + €50/mėn — pigiau nei vienas darbuotojo valanda per savaitę
+- Tikslingas skausmo taškas pagal industriją:
+  * Odontologas/klinika → rezervacijos klausimas, darbo laiko, kainų klausimai naktį
+  * Restoranas/kavinė → stalo rezervacijos, meniu, darbo laikas
+  * Viešbutis → kambario kainos, laisvos datos, papildomos paslaugos
+  * Advokatai → pirminis klientų atrankos pokalbis, konsultacijos laiko klausimas
+  * NT agentūra → objektų klausimai, apžiūros organizavimas
+TEMOS PAVYZDŽIAI (naudok panašų stilių):
+- "Klientai rašo po 18:00 — kas jiems atsako?"
+- "Klausimas apie {lead.company_name} klientų aptarnavimą"
+- "Idėja: {lead.industry} chatbot, kuris veikia 24/7"
+- "{lead.company_name}: automatinis asistentas klientams"
+"""
+
     user_prompt = f"""Parašyk personalizuotą šaltą el. laišką šiam potencialiam klientui:
 
 ĮMONĖ: {lead.company_name}
@@ -93,11 +114,11 @@ INDUSTRIJA: {lead.industry}
 SITUACIJA: {situation}
 SKAUSMO TAŠKAS: {pain}
 SIŪLOMA PASLAUGA (TIKTAI ŠI — NERAŠYK KITŲ): {services_text}
-
+{chatbot_guidance}
 Formato reikalavimai:
-Tema: [konkreti tema, iki 60 simbolių]
+Tema: [konkreti, intriguojanti tema iki 55 simbolių — klausimas arba konkretus skausmo taškas]
 
-[Laiškas — TIKTAI apie vieną siūlomą paslaugą]
+[Laiškas — TIKTAI apie vieną siūlomą paslaugą, 120-180 žodžių]
 
 Pagarbiai,
 {AGENT_NAME}

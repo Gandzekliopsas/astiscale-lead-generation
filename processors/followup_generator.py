@@ -32,23 +32,36 @@ def generate_followups(lead: dict, initial_email_body: str, service_target: str)
     city = lead.get("city", "")
     greeting = f"Sveiki, {manager.split()[0]}!" if manager and manager.strip() else "Laba diena!"
 
+    # Build service-specific angle hints
+    if service_target == "chatbot":
+        angle1 = "Konkretus klausimas: ar klientai dažnai rašo po darbo laiko arba savaitgaliais? Paminėk, kad chatbot atsako iš karto net ir naktį."
+        angle2 = "Pasiūlyk nemokamą 15 min demo — per video parodai kaip chatbot veikia jų industrijoje. Paminėk kainą: €300 įdiegimas + €50/mėn."
+        angle3 = "Draugiškas breakup + lengvas FOMO: per mėnesį priimimai tik 3 nauji chatbot klientai (pralaidumas ribotas konfigūracijai), liko 1-2 vietos. Jei ne dabar — viskas ok, bet durys greitai uždarytos."
+    else:
+        angle1 = "Vienas konkretus klausimas apie jų verslą + minkštas kvietimas."
+        angle2 = "Pasiūlyk 15 min video demo kaip alternatyvą skambučiui. Paminėk konkretų privalumą jų industrijoje."
+        angle3 = "Draugiškas breakup — supranti jei ne laikas, palik duris atviras. Sukurk lengvą FOMO."
+
     prompts = [
         f"""Parašyk PIRMĄ follow-up laišką (3 dienos po pirmojo).
 Įmonė: {company}, {city}. Paslauga: {service_target}.
-Kampas: Vienas konkretus klausimas apie jų verslą + minkštas kvietimas.
+Kampas: {angle1}
 Pradėk: "{greeting}\n\n"
 NE: "Ar gavote mano laišką?"
+Max 70 žodžių.
 """,
         f"""Parašyk ANTRĄ follow-up (7 dienos po pirmojo).
 Įmonė: {company}. Paslauga: {service_target}.
-Kampas: Pasiūlyk 15 min video demo kaip alternatyvą skambučiui. Paminėk konkretų privalumą jų industrijoje.
+Kampas: {angle2}
 Pradėk: "{greeting}\n\n"
+Max 80 žodžių.
 """,
         f"""Parašyk TREČIĄ (paskutinį) follow-up laišką (14 dienų po pirmojo).
 Įmonė: {company}.
-Kampas: Draugiškas "breakup" — supranti jei ne laikas, palik duris atviras. Sukurk lengvą FOMO.
+Kampas: {angle3}
 Pradėk: "{greeting}\n\n"
 Baik: "Linkiu sėkmės versle! 🙏"
+Max 70 žodžių.
 """,
     ]
 
