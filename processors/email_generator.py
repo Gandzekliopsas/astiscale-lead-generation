@@ -67,15 +67,17 @@ SERVICE_REQUIREMENTS = {
     },
     "website": {
         "must_include": [
-            "Konkreti pastaba apie JŲ svetainę — kas pasenę, kas neveikia, kas atrodo blogai mobiliajame",
-            "Skausmo taškas: pasenusi/lėta/neturima svetainė = prarasti klientai Google paieškoje",
-            "Sprendimas: moderni svetainė su SEO, mobiliuoju pritaikymu, per 2 savaites",
-            "Kaina: nuo €499",
-            "CTA: 15 min pokalbis",
+            "Konkreti pastaba apie JŲ svetainę arba kad jos visai neturi — specifiškai pagal jų situaciją",
+            "Skausmo taškas: be modernios svetainės Google paieškoje jų neranda — klientai eina pas konkurentus",
+            "Pasiūlyk NEMOKAMĄ svetainės auditą arba NEMOKAMĄ maketo eskizą — kaip konkrečiai atrodytų JŲ nauja svetainė",
+            "CTA: paklausti ar norėtų gauti nemokamą auditą/eskizą — be jokių įsipareigojimų",
+            "NEKALBĖTI apie kainą pirmame laiške",
         ],
         "avoid": [
+            "Neminėk kainos (€499 ar bet kokios) pirmame laiške",
             "Neminėk chatbot ar kitų paslaugų",
             "Neišgalvok faktų apie jų svetainę kurių nežinai",
+            "Nesiūlyk '15 minučių skambučio' kaip CTA",
         ],
     },
     "meta_ads": {
@@ -131,9 +133,10 @@ LIETUVIŠKOS KALBOS TAISYKLĖS (LABAI SVARBU):
 - Ilgis: 110–160 žodžių. NE ILGIAU.
 
 ⛔ ABSOLIUČIAI DRAUDŽIAMA PIRMAME LAIŠKE:
-- Jokios kainos — ne €300, ne €50, ne jokie skaičiai susiję su mokėjimu
+- Jokios kainos — ne €300, ne €149, ne €499, ne jokie skaičiai susiję su mokėjimu
 - Joks "15 minučių skambutis" kaip CTA
-- Vienintelis CTA: paklausti ar norėtų kad SUKURTUM jiems nemokamą demo
+- Chatbot CTA: paklausti ar norėtų kad SUKURTUM jiems nemokamą AI demo
+- Svetainės CTA: paklausti ar norėtų gauti NEMOKAMĄ svetainės auditą arba maketo eskizą
 
 Grąžink TIK laišką — be komentarų, be metaduomenų."""
 
