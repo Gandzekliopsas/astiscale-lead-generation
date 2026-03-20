@@ -4,67 +4,80 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AstiScale — Lead Generation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* ── Reset & Base ─────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg:       #0d0d1a;
-  --sidebar:  #111122;
-  --card:     #16162a;
-  --card2:    #1c1c35;
-  --border:   #2a2a4a;
+  --bg:       #0b0b18;
+  --sidebar:  #0f0f20;
+  --card:     #141428;
+  --card2:    #1a1a30;
+  --border:   #252540;
+  --border2:  #1e1e38;
   --text:     #e2e8f0;
-  --muted:    #8892aa;
+  --muted:    #7580a0;
   --accent:   #667eea;
   --accent2:  #764ba2;
   --green:    #4ade80;
   --yellow:   #facc15;
   --red:      #f87171;
   --blue:     #60a5fa;
-  --radius:   12px;
-  --shadow:   0 4px 24px rgba(0,0,0,0.4);
+  --radius:   10px;
+  --shadow:   0 8px 32px rgba(0,0,0,0.5);
 }
-html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased; }
 
 /* ── Layout ──────────────────────────────────────────── */
 .layout { display: flex; height: 100vh; overflow: hidden; }
 
 /* ── Sidebar ─────────────────────────────────────────── */
 .sidebar {
-  width: 220px; min-width: 220px; background: var(--sidebar);
-  border-right: 1px solid var(--border);
+  width: 224px; min-width: 224px; background: var(--sidebar);
+  border-right: 1px solid var(--border2);
   display: flex; flex-direction: column; padding: 0;
   overflow-y: auto;
 }
 .logo {
-  padding: 24px 20px 20px;
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid var(--border2);
+}
+.logo-inner {
+  display: inline-flex; align-items: center; gap: 10px;
+}
+.logo-mark {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -.5px;
 }
-.logo h1 { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
-.logo p { font-size: 11px; opacity: .8; margin-top: 2px; }
-.nav { padding: 12px 0; flex: 1; }
+.logo h1 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+.logo p { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.nav { padding: 10px 8px; flex: 1; }
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 20px; cursor: pointer; color: var(--muted);
-  transition: all .15s; font-size: 13.5px; font-weight: 500;
-  border-left: 3px solid transparent;
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; cursor: pointer; color: var(--muted);
+  transition: all .15s; font-size: 13px; font-weight: 500;
+  border-radius: 7px; margin-bottom: 1px;
 }
-.nav-item:hover { color: var(--text); background: rgba(102,126,234,.08); }
-.nav-item.active { color: var(--accent); background: rgba(102,126,234,.12); border-left-color: var(--accent); }
-.nav-icon { font-size: 16px; width: 20px; text-align: center; }
-.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.nav-item:hover { color: var(--text); background: rgba(102,126,234,.07); }
+.nav-item.active { color: var(--accent); background: rgba(102,126,234,.13); font-weight: 600; }
+.nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; opacity: .85; }
+.nav-item.active .nav-icon { opacity: 1; }
+.sidebar-footer { padding: 14px 20px; border-top: 1px solid var(--border2); font-size: 11.5px; color: var(--muted); }
 
 /* ── Main content ────────────────────────────────────── */
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .topbar {
-  padding: 0 28px; height: 56px; display: flex; align-items: center;
-  justify-content: space-between; border-bottom: 1px solid var(--border);
-  background: var(--sidebar);
+  padding: 0 24px; height: 52px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--border2);
+  background: var(--sidebar); flex-shrink: 0;
 }
-.topbar-title { font-size: 16px; font-weight: 600; }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
 .badge {
   padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
   letter-spacing: .5px; text-transform: uppercase;
@@ -74,59 +87,69 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; backg
 .badge-red { background: rgba(248,113,113,.15); color: var(--red); }
 .badge-blue { background: rgba(96,165,250,.15); color: var(--blue); }
 
-.content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+.content { flex: 1; overflow-y: auto; padding: 22px 24px; }
 
 /* ── Pages ───────────────────────────────────────────── */
 .page { display: none; }
 .page.active { display: block; }
 
+/* ── Page header ─────────────────────────────────────── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px;
+}
+.page-header h2 { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+
 /* ── Cards ───────────────────────────────────────────── */
 .card {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px;
+  border-radius: var(--radius); padding: 18px 20px;
 }
-.card-sm { padding: 16px; }
+.card-sm { padding: 14px 16px; }
 
 /* ── Stats grid ──────────────────────────────────────── */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .stat-card {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 18px 20px;
+  border-radius: var(--radius); padding: 16px 18px;
   position: relative; overflow: hidden;
+  border-left: 3px solid var(--accent);
 }
-.stat-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-}
-.stat-card.green::before { background: linear-gradient(90deg, var(--green), #22c55e); }
-.stat-card.yellow::before { background: linear-gradient(90deg, var(--yellow), #f59e0b); }
-.stat-card.red::before { background: linear-gradient(90deg, var(--red), #ef4444); }
-.stat-card.blue::before { background: linear-gradient(90deg, var(--blue), #3b82f6); }
-.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; font-weight: 600; }
-.stat-value { font-size: 32px; font-weight: 700; margin: 6px 0 2px; line-height: 1; }
+.stat-card.green { border-left-color: var(--green); }
+.stat-card.yellow { border-left-color: var(--yellow); }
+.stat-card.red { border-left-color: var(--red); }
+.stat-card.blue { border-left-color: var(--blue); }
+.stat-card.accent { border-left-color: var(--accent); }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+.stat-value { font-size: 28px; font-weight: 700; margin: 6px 0 2px; line-height: 1; letter-spacing: -.5px; }
 .stat-sub { font-size: 11px; color: var(--muted); }
 
 /* ── Section headers ─────────────────────────────────── */
 .section-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
-.section-title { font-size: 15px; font-weight: 600; }
+.section-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
 
 /* ── Buttons ─────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 8px; border: none;
+  padding: 7px 14px; border-radius: 7px; border: none;
   cursor: pointer; font-size: 13px; font-weight: 600;
-  transition: all .15s; text-decoration: none;
+  transition: all .15s; text-decoration: none; font-family: inherit;
+  white-space: nowrap;
 }
 .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
-.btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,.4); }
-.btn-ghost { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--border); }
-.btn-ghost:hover { background: rgba(255,255,255,.1); }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-primary:hover { opacity: .88; box-shadow: 0 3px 10px rgba(102,126,234,.35); }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.2); }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn-warning { background: rgba(245,158,11,.15); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+.btn-warning:hover { background: rgba(245,158,11,.25); }
+.btn-info { background: rgba(96,165,250,.15); color: var(--blue); border: 1px solid rgba(96,165,250,.3); }
+.btn-info:hover { background: rgba(96,165,250,.25); }
 .btn-danger { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
-.btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
 /* ── Table ───────────────────────────────────────────── */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
@@ -134,13 +157,13 @@ table { width: 100%; border-collapse: collapse; background: var(--card); }
 thead { position: sticky; top: 0; z-index: 2; }
 th {
   background: var(--card2); color: var(--muted); text-align: left;
-  padding: 10px 14px; font-size: 11px; text-transform: uppercase;
-  letter-spacing: .7px; font-weight: 600; border-bottom: 1px solid var(--border);
+  padding: 9px 14px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: .6px; font-weight: 600; border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
-td { padding: 11px 14px; border-bottom: 1px solid rgba(42,42,74,.5); vertical-align: middle; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border2); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: rgba(102,126,234,.04); }
+tr:hover td { background: rgba(102,126,234,.035); }
 .clickable { cursor: pointer; }
 
 /* ── Status dots ─────────────────────────────────────── */
@@ -155,39 +178,42 @@ tr:hover td { background: rgba(102,126,234,.04); }
 
 /* ── Filters bar ─────────────────────────────────────── */
 .filters {
-  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center;
 }
 .filter-input {
   background: var(--card); border: 1px solid var(--border); color: var(--text);
-  padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;
+  padding: 7px 11px; border-radius: 7px; font-size: 13px; outline: none;
+  font-family: inherit; transition: border-color .15s;
 }
-.filter-input:focus { border-color: var(--accent); }
+.filter-input:focus { border-color: var(--accent); background: var(--card2); }
 select.filter-input { cursor: pointer; }
 
 /* ── Modal ───────────────────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.7); z-index: 100;
+  background: rgba(0,0,0,.65); z-index: 100;
   align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
 }
 .modal-overlay.open { display: flex; }
 .modal {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 16px; width: min(720px, 96vw);
+  border-radius: 12px; width: min(700px, 96vw);
   max-height: 90vh; display: flex; flex-direction: column;
-  box-shadow: var(--shadow);
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
 }
 .modal-header {
-  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
 }
-.modal-title { font-size: 16px; font-weight: 700; }
-.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-title { font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+.modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
 .modal-close {
   background: none; border: none; color: var(--muted); cursor: pointer;
-  font-size: 20px; line-height: 1; padding: 4px;
+  font-size: 18px; line-height: 1; padding: 4px; border-radius: 4px;
+  transition: color .15s, background .15s;
 }
-.modal-close:hover { color: var(--text); }
+.modal-close:hover { color: var(--text); background: rgba(255,255,255,.06); }
 
 /* ── Info rows ───────────────────────────────────────── */
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -216,8 +242,8 @@ select.filter-input { cursor: pointer; }
 .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
 .form-control {
   width: 100%; background: var(--card2); border: 1px solid var(--border);
-  color: var(--text); padding: 10px 14px; border-radius: 8px;
-  font-size: 13px; outline: none;
+  color: var(--text); padding: 9px 12px; border-radius: 7px;
+  font-size: 13px; outline: none; font-family: inherit; transition: border-color .15s;
 }
 .form-control:focus { border-color: var(--accent); }
 select.form-control { cursor: pointer; }
@@ -299,15 +325,15 @@ select.form-control { cursor: pointer; }
 
 /* ── Toast ───────────────────────────────────────────── */
 .toast {
-  position: fixed; bottom: 24px; right: 24px; z-index: 999;
+  position: fixed; bottom: 20px; right: 20px; z-index: 999;
   background: var(--card2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 20px; font-size: 13px;
+  border-radius: 8px; padding: 11px 18px; font-size: 13px; font-weight: 500;
   box-shadow: var(--shadow); transform: translateY(80px);
-  transition: transform .25s; max-width: 320px;
+  transition: transform .2s; max-width: 300px;
 }
 .toast.show { transform: translateY(0); }
-.toast.toast-ok { border-color: var(--green); color: var(--green); }
-.toast.toast-err { border-color: var(--red); color: var(--red); }
+.toast.toast-ok { border-color: rgba(74,222,128,.4); color: var(--green); }
+.toast.toast-err { border-color: rgba(248,113,113,.4); color: var(--red); }
 
 /* ── Send email btn state ────────────────────────────── */
 .btn-send { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
@@ -315,25 +341,28 @@ select.form-control { cursor: pointer; }
 .btn-send:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ── Kanban board ────────────────────────────────────── */
-.kanban-board { display:flex; gap:12px; overflow-x:auto; padding-bottom:16px; min-height:70vh; align-items:flex-start; }
-.kanban-col { min-width:210px; max-width:210px; background:rgba(255,255,255,0.05); border-radius:12px; padding:12px; flex-shrink:0; }
-.kanban-col-header { font-size:12px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; color:#a78bfa; }
-.kanban-col-count { background:rgba(139,92,246,0.3); border-radius:999px; padding:1px 8px; font-size:11px; color:#e9d5ff; }
-.kanban-card { background:rgba(255,255,255,0.07); border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer; border:1px solid rgba(255,255,255,0.1); transition:all 0.2s; }
-.kanban-card:hover { background:rgba(255,255,255,0.13); border-color:rgba(139,92,246,0.6); transform:translateY(-1px); }
-.kanban-card.won { background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.4); }
-.kanban-card.lost { opacity:0.5; }
-.score-badge { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; font-size:10px; font-weight:700; flex-shrink:0; }
+.kanban-board { display:flex; gap:10px; overflow-x:auto; padding-bottom:16px; min-height:70vh; align-items:flex-start; }
+.kanban-col { min-width:200px; max-width:200px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:10px; flex-shrink:0; }
+.kanban-col-header { font-size:11px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; color:var(--accent); text-transform:uppercase; letter-spacing:.5px; }
+.kanban-col-count { background:rgba(102,126,234,.2); border-radius:999px; padding:1px 7px; font-size:10px; color:var(--accent); }
+.kanban-card { background:var(--card2); border-radius:8px; padding:10px; margin-bottom:6px; cursor:pointer; border:1px solid var(--border); transition:all 0.15s; }
+.kanban-card:hover { border-color:rgba(102,126,234,.5); transform:translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+.kanban-card.won { background:rgba(74,222,128,.08); border-color:rgba(74,222,128,.3); }
+.kanban-card.lost { opacity:0.45; }
+.score-badge { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; font-size:10px; font-weight:700; flex-shrink:0; }
 .score-hot { background:#ef4444; color:white; }
 .score-warm { background:#f59e0b; color:white; }
 .score-ok { background:#3b82f6; color:white; }
-.score-cold { background:#6b7280; color:white; }
+.score-cold { background:rgba(107,114,128,.4); color:#9ca3af; }
 
 /* ── Settings ────────────────────────────────────────── */
 .settings-card {
-  background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;
-  border: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px;
+  background: var(--card); border-radius: var(--radius); padding: 18px 20px;
+  border: 1px solid var(--border); margin-bottom: 12px;
 }
+.settings-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.settings-card-title { font-weight: 600; color: var(--text); font-size: 13.5px; }
+.settings-card-desc { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -342,8 +371,13 @@ select.form-control { cursor: pointer; }
 <!-- ── Sidebar ───────────────────────────────────────── -->
 <aside class="sidebar">
   <div class="logo">
-    <h1>AstiScale</h1>
-    <p>Lead Generation</p>
+    <div class="logo-inner">
+      <div class="logo-mark">A</div>
+      <div>
+        <h1>AstiScale</h1>
+        <p>Lead Generation</p>
+      </div>
+    </div>
   </div>
   <nav class="nav">
     <div class="nav-item active" onclick="showPage('dashboard')">
@@ -508,7 +542,7 @@ select.form-control { cursor: pointer; }
       <div class="run-grid">
         <div>
           <div class="card">
-            <div class="section-title" style="margin-bottom:16px">⚡ Nauja paieška</div>
+            <div class="section-title" style="margin-bottom:16px">Nauja paieška</div>
 
             <div class="form-group">
               <label>Paslauga — ką norite parduoti?</label>
@@ -583,7 +617,7 @@ select.form-control { cursor: pointer; }
     <!-- ══ HISTORY PAGE ════════════════════════════════ -->
     <div class="page" id="page-history">
       <div class="card">
-        <div class="section-title" style="margin-bottom:16px">📋 Paleistų paieškų istorija</div>
+        <div class="section-title" style="margin-bottom:16px">Paleistų paieškų istorija</div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -607,9 +641,9 @@ select.form-control { cursor: pointer; }
 
     <!-- ══ CRM PIPELINE PAGE ═══════════════════════════ -->
     <div class="page" id="page-crm">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-        <h2 style="font-size:20px;font-weight:700;color:white">🔄 CRM Pipeline</h2>
-        <button onclick="loadCrmLeads()" class="btn btn-primary btn-sm">🔄 Atnaujinti</button>
+      <div class="page-header">
+        <h2>CRM Pipeline</h2>
+        <button onclick="loadCrmLeads()" class="btn btn-ghost btn-sm">↻ Atnaujinti</button>
       </div>
       <div class="kanban-board" id="kanbanBoard">
         <div class="text-muted text-sm" style="padding:32px">Kraunama...</div>
@@ -618,43 +652,43 @@ select.form-control { cursor: pointer; }
 
     <!-- ══ ANALYTICS PAGE ══════════════════════════════ -->
     <div class="page" id="page-analytics">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-        <h2 style="font-size:20px;font-weight:700;color:white">📊 Analitika</h2>
-        <button onclick="loadAnalytics()" class="btn btn-primary btn-sm">🔄 Atnaujinti</button>
+      <div class="page-header">
+        <h2>Analitika</h2>
+        <button onclick="loadAnalytics()" class="btn btn-ghost btn-sm">↻ Atnaujinti</button>
       </div>
       <div id="analyticsLoading" style="display:none;text-align:center;color:var(--muted);padding:48px">Kraunama...</div>
       <div id="analyticsContent" style="display:none">
         <!-- KPI cards -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px" id="analyticsKpis"></div>
+        <div class="stats-grid" style="margin-bottom:16px" id="analyticsKpis"></div>
         <!-- Score distribution -->
-        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px" id="analyticsScores"></div>
+        <div class="card" style="margin-bottom:14px" id="analyticsScores"></div>
         <!-- Follow-up panel -->
-        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1);margin-bottom:24px">
+        <div class="card" style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <div>
-              <div style="font-size:14px;font-weight:600;color:var(--text)">📅 Follow-up laiškai</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Automatiškai tikrina kas 30 min</div>
+              <div class="section-title">Follow-up laiškai</div>
+              <div class="text-sm text-muted" style="margin-top:4px">Automatiškai tikrina kas 30 min</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-              <span id="dueFollowupBadge" style="display:none;font-size:14px;font-weight:700;color:#f59e0b"></span>
-              <button onclick="sendDueFollowups()" style="padding:6px 12px;background:#d97706;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">📤 Siųsti dabar</button>
-              <button onclick="checkReplies()" style="padding:6px 12px;background:#2563eb;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">📬 Tikrinti atsakymus</button>
+              <span id="dueFollowupBadge" style="display:none;font-size:14px;font-weight:700;color:var(--yellow)"></span>
+              <button onclick="sendDueFollowups()" class="btn btn-warning btn-sm">📤 Siųsti dabar</button>
+              <button onclick="checkReplies()" class="btn btn-info btn-sm">📬 Tikrinti atsakymus</button>
             </div>
           </div>
         </div>
         <!-- Charts -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-          <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Leadai pagal šaltinį</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="card">
+            <div class="section-title" style="margin-bottom:12px">Leadai pagal šaltinį</div>
             <canvas id="chart-source" height="200"></canvas>
           </div>
-          <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
-            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">CRM etapai</div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom:12px">CRM etapai</div>
             <canvas id="chart-stage" height="200"></canvas>
           </div>
         </div>
-        <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1)">
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Populiariausios industrijos</div>
+        <div class="card">
+          <div class="section-title" style="margin-bottom:12px">Populiariausios industrijos</div>
           <canvas id="chart-industry" height="150"></canvas>
         </div>
       </div>
@@ -667,18 +701,20 @@ select.form-control { cursor: pointer; }
 
     <!-- ══ SETTINGS PAGE ═══════════════════════════════ -->
     <div class="page" id="page-settings">
-      <h2 style="font-size:20px;font-weight:700;color:white;margin-bottom:24px">⚙️ Nustatymai</h2>
-      <div style="max-width:640px">
+      <div class="page-header">
+        <h2>Nustatymai</h2>
+      </div>
+      <div style="max-width:600px">
 
         <div class="settings-card">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+          <div class="settings-card-header">
             <div>
-              <div style="font-weight:600;color:white">📱 Telegram Bot</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Gauk pranešimus kai leadai atidaro laiškus ir atsako</div>
+              <div class="settings-card-title">Telegram Bot</div>
+              <div class="settings-card-desc">Gauk pranešimus kai leadai atidaro laiškus ir atsako</div>
             </div>
-            <button onclick="testTelegram()" style="padding:6px 12px;background:#2563eb;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">🔔 Testuoti</button>
+            <button onclick="testTelegram()" class="btn btn-info btn-sm">🔔 Testuoti</button>
           </div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.8">
+          <div class="text-sm text-muted" style="line-height:1.9">
             <div>1. Sukurk botą per @BotFather → gauk token</div>
             <div>2. Railway Variables → <code style="background:var(--card2);padding:1px 6px;border-radius:4px">TELEGRAM_BOT_TOKEN</code></div>
             <div>3. Parašyk botui /start → gauk chat ID</div>
@@ -687,9 +723,11 @@ select.form-control { cursor: pointer; }
         </div>
 
         <div class="settings-card">
-          <div style="font-weight:600;color:white;margin-bottom:8px">🗺️ Google Maps API</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Geriausia įmonių paieškos priemonė — tikri duomenys, tikri kontaktai</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.8">
+          <div>
+            <div class="settings-card-title">Google Maps API</div>
+            <div class="settings-card-desc" style="margin-bottom:10px">Geriausia įmonių paieškos priemonė — tikri duomenys, tikri kontaktai</div>
+          </div>
+          <div class="text-sm text-muted" style="line-height:1.9">
             <div>1. Google Cloud Console → įjunk <strong>Places API</strong></div>
             <div>2. Sukurk API raktą</div>
             <div>3. Railway Variables → <code style="background:var(--card2);padding:1px 6px;border-radius:4px">GOOGLE_PLACES_API_KEY</code></div>
@@ -697,23 +735,23 @@ select.form-control { cursor: pointer; }
         </div>
 
         <div class="settings-card">
-          <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="settings-card-header">
             <div>
-              <div style="font-weight:600;color:white">📅 Follow-up automatizavimas</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Po išsiųsto laiško: follow-up po 3, 7, 14 dienų</div>
-              <div style="font-size:12px;color:#4ade80;margin-top:4px">✅ Aktyvus — tikrina kas 30 min</div>
+              <div class="settings-card-title">Follow-up automatizavimas</div>
+              <div class="settings-card-desc">Po išsiųsto laiško: follow-up po 3, 7, 14 dienų</div>
+              <div class="text-sm" style="color:var(--green);margin-top:4px">✓ Aktyvus — tikrina kas 30 min</div>
             </div>
-            <button onclick="sendDueFollowups()" style="padding:6px 12px;background:#d97706;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">📤 Siųsti dabar</button>
+            <button onclick="sendDueFollowups()" class="btn btn-warning btn-sm">📤 Siųsti dabar</button>
           </div>
         </div>
 
         <div class="settings-card">
-          <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="settings-card-header">
             <div>
-              <div style="font-weight:600;color:white">📬 Atsakymų tikrinimas</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Automatiškai tikrina info@astiscale.com kas 4 val.</div>
+              <div class="settings-card-title">Atsakymų tikrinimas</div>
+              <div class="settings-card-desc">Automatiškai tikrina info@astiscale.com kas 4 val.</div>
             </div>
-            <button onclick="checkReplies()" style="padding:6px 12px;background:#2563eb;border:none;color:white;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">🔄 Tikrinti dabar</button>
+            <button onclick="checkReplies()" class="btn btn-info btn-sm">↻ Tikrinti dabar</button>
           </div>
         </div>
 
