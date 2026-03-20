@@ -130,6 +130,11 @@ LIETUVIŠKOS KALBOS TAISYKLĖS (LABAI SVARBU):
 - Jokių frazių: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe", "Esu įsitikinęs"
 - Ilgis: 110–160 žodžių. NE ILGIAU.
 
+⛔ ABSOLIUČIAI DRAUDŽIAMA PIRMAME LAIŠKE:
+- Jokios kainos — ne €300, ne €50, ne jokie skaičiai susiję su mokėjimu
+- Joks "15 minučių skambutis" kaip CTA
+- Vienintelis CTA: paklausti ar norėtų kad SUKURTUM jiems nemokamą demo
+
 Grąžink TIK laišką — be komentarų, be metaduomenų."""
 
 

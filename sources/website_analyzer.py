@@ -33,6 +33,22 @@ CURRENT_YEAR = datetime.now().year
 OLD_THRESHOLD = 2020   # copyright year ≤ this → "old"
 TIMEOUT = 20           # seconds — increased for slow Lithuanian sites
 
+# ── Business directory / aggregator domains ────────────────────────────────────
+# If a company's URL points to one of these, they don't have their OWN website.
+DIRECTORY_DOMAINS = [
+    "info.lt", "rekvizitai.vz.lt", "rekvizitai.lt", "imones.lt",
+    "verslo.lt", "katalogas.lt", "adresas.lt", "pirkti.lt",
+    "118.lt", "topkatalogai.lt", "firmos.lt", "viskas.lt",
+    "salygos.lt", "on.lt", "yellow.lt", "kontaktai.lt",
+    "lietuvosimones.lt", "google.com/maps", "maps.google",
+    "facebook.com", "instagram.com", "linkedin.com",
+]
+
+def _is_directory_url(url: str) -> bool:
+    """Return True if URL belongs to a business directory, not the company's own site."""
+    u = url.lower()
+    return any(d in u for d in DIRECTORY_DOMAINS)
+
 
 def analyze_website(url: str) -> dict:
     """
@@ -62,6 +78,12 @@ def analyze_website(url: str) -> dict:
         return result
 
     url = url.strip()
+
+    # Guard: directory/aggregator URL → treat as "none" (not their own website)
+    if _is_directory_url(url):
+        result["status"] = "none"
+        result["notes"] = "Nėra savo svetainės (katalogas)"
+        return result
 
     # Normalize URL
     if not url.startswith("http"):

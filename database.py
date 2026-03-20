@@ -128,8 +128,23 @@ def _migrate():
 
 # ── Leads ─────────────────────────────────────────────────────────────────────
 
+def lead_exists(company_name: str, city: str) -> bool:
+    """Return True if a lead with the same company name + city already exists in the DB."""
+    with get_db() as db:
+        row = db.execute(
+            "SELECT id FROM leads WHERE LOWER(TRIM(company_name))=LOWER(TRIM(?)) "
+            "AND LOWER(TRIM(city))=LOWER(TRIM(?)) LIMIT 1",
+            (company_name, city)
+        ).fetchone()
+        return row is not None
+
+
 def insert_lead(run_date: str, lead, service_target: str = "") -> int:
-    """Insert a BusinessLead and return its id."""
+    """Insert a BusinessLead and return its id. Returns -1 if duplicate."""
+    # Skip if same company+city already exists in any run
+    if lead_exists(lead.company_name or '', lead.city or ''):
+        return -1
+
     from processors.service_recommender import build_service_summary, cold_call_script
     services_str = build_service_summary(lead.recommended_services)
     call_script   = cold_call_script(lead)
