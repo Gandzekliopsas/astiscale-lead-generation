@@ -1,11 +1,8 @@
 """
-Email Generator — Hybrid model: fixed template per service + Claude-personalized subject & hook.
-Claude generates ONLY 2 things per email:
-  1. Subject line (≤55 chars)
-  2. Opening hook (2-3 sentences specific to the company/city/industry)
-Everything else is hand-crafted fixed copy assembled in Python.
+Email Generator — Claude writes the full hyper-personalized cold email.
+Each email is unique and researched for the specific business.
+Per-service required elements ensure every email hits the right points.
 """
-import json
 import logging
 from anthropic import Anthropic
 from config import (
@@ -17,115 +14,169 @@ logger = logging.getLogger(__name__)
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-# ── Fixed benefit + CTA blocks per service (hand-crafted, never changes) ──────
-EMAIL_TEMPLATES = {
+# ── Per-service required elements (what Claude MUST include in every email) ────
+SERVICE_REQUIREMENTS = {
     "chatbot": {
-        "benefit": (
-            "Daugelis klientų rašo klausimus vakare ar savaitgaliais — kai verslas jau nedirba. "
-            "AI asistentas jūsų svetainėje atsakytų jiems iš karto, 24/7, be papildomų darbuotojų. "
-            "Įdiegimas: €300 vienkartinai + €50/mėn."
-        ),
-        "cta": (
-            "Ar turėtumėte 15 minučių šią savaitę trumpam skambučiui? "
-            "Mielai parodysiu kaip tai veikia su realia demo."
-        ),
+        "must_include": [
+            "Konkreti pastaba apie JŲ verslą — ką pastebėjai apie jų svetainę, darbo laiką, ar kaip jie priima klientus",
+            "Skausmo taškas: klientai rašo vakare/savaitgaliais kai verslas nedirba — niekas neatsakinėja",
+            "Sprendimas: AI asistentas atsako 24/7 automatiškai, renka kontaktus, siunčia rezervacijas",
+            "Kaina: €300 vienkartinis įdiegimas + €50/mėn",
+            "CTA: 15 min skambutis arba galimybė pamatyti demo",
+        ],
+        "avoid": [
+            "Neišgalvok statistikų ar skaičių apie jų verslą",
+            "Neminėk kitų paslaugų (svetainės, reklamos)",
+            "Nenaudok žodžių: 'inovatyvus', 'revoliucinis', 'sinergija'",
+        ],
     },
     "website": {
-        "benefit": (
-            "Moderni svetainė padidina pasitikėjimą ir leidžia rasti jus Google paieškoje. "
-            "Sukuriame per 2 savaites — su mobiliuoju pritaikymu, SEO ir kontaktų forma. "
-            "Kaina nuo €499."
-        ),
-        "cta": "Ar turėtumėte 15 minučių šią savaitę trumpam pokalbiui?",
+        "must_include": [
+            "Konkreti pastaba apie JŲ svetainę — kas pasenę, kas neveikia, kas atrodo blogai mobiliajame",
+            "Skausmo taškas: pasenusi/lėta/neturima svetainė = prarasti klientai Google paieškoje",
+            "Sprendimas: moderni svetainė su SEO, mobiliuoju pritaikymu, per 2 savaites",
+            "Kaina: nuo €499",
+            "CTA: 15 min pokalbis",
+        ],
+        "avoid": [
+            "Neminėk chatbot ar kitų paslaugų",
+            "Neišgalvok faktų apie jų svetainę kurių nežinai",
+        ],
     },
     "meta_ads": {
-        "benefit": (
-            "Facebook ir Instagram reklama pasiekia žmones jūsų mieste, kurie jau ieško "
-            "tokių paslaugų kaip jūsiškės — ir moka už jas. "
-            "Valdymas nuo €299/mėn."
-        ),
-        "cta": "Ar turėtumėte 15 minučių šią savaitę pasikalbėti?",
+        "must_include": [
+            "Konkreti pastaba apie jų verslą arba industriją mieste",
+            "Skausmo taškas: potencialūs klientai mieste kasdien ieško tokių paslaugų, bet neranda JŲ",
+            "Sprendimas: Facebook/Instagram reklama tiksliai tų žmonių mieste kurie ieško jų paslaugų",
+            "Kaina: nuo €299/mėn valdymas",
+            "CTA: 15 min pokalbis apie galimybes",
+        ],
+        "avoid": [
+            "Neminėk chatbot ar svetainės kūrimo",
+            "Neišgalvok reklamos rezultatų ar statistikų",
+        ],
     },
     "verslo_valdymas": {
-        "benefit": (
-            "Automatizuojame maršrutus, dokumentus ir darbo laiko apskaitą — "
-            "kad nebereikėtų to daryti rankiniu būdu. "
-            "Sistema pritaikoma jūsų esamiems procesams. Nuo €299/mėn."
-        ),
-        "cta": "Ar turėtumėte 15 minučių šią savaitę trumpam pokalbiui?",
-    },
-    # Fallback for unknown service keys
-    "_default": {
-        "benefit": "Padedame Lietuvos verslo įmonėms augti naudojant skaitmenines priemones.",
-        "cta": "Ar turėtumėte 15 minučių šią savaitę trumpam pokalbiui?",
+        "must_include": [
+            "Konkreti pastaba apie jų veiklos specifiką (transportas/logistika/gamyba/statyba)",
+            "Skausmo taškas: rankinis darbas — maršrutai, dokumentai, darbo laikas — eikvojamas laikas",
+            "Sprendimas: sistema automatizuoja jų konkrečius procesus",
+            "Kaina: nuo €299/mėn",
+            "CTA: 15 min pokalbis",
+        ],
+        "avoid": [
+            "Neminėk chatbot ar reklamos",
+            "Neišgalvok skaičių apie jų verslą",
+        ],
     },
 }
 
-# ── System prompt (stays cached by Anthropic prompt caching) ──────────────────
-SYSTEM_PROMPT = """Tu esi patyrės pardavimų tekstų rašytojas, rašantis šaltus el. laiškus \
-lietuvių verslininkams.
+# ── System prompt (stays cached) ──────────────────────────────────────────────
+SYSTEM_PROMPT = f"""Tu esi {AGENT_NAME} iš {AGENCY_NAME} — Lietuvos AI ir skaitmeninės rinkodaros agentūros.
+Rašai TIKRUS šaltus el. laiškus realiems Lietuvos verslininkams.
 
-Tavo užduotis: sugeneruoti TIK 2 personalizuotus elementus šaltam el. laiškui.
-Grąžink TIKTAI galiojantį JSON objektą be jokio kito teksto:
-{"subject": "...", "hook": "..."}
+ESMINIS PRINCIPAS: Kiekvienas laiškas turi atrodyti kaip TU asmeniškai pažiūrejai į JŲ verslą ir parašei jiems — ne šablonas, ne masinė išsiuntinėjimas.
 
-TAISYKLĖS:
-- subject: iki 55 simbolių, lietuvių kalba, intriguojantis klausimas arba konkretus skausmo taškas
-- hook: 2-3 sakiniai, LABAI specifiškai apie pateiktą įmonę — minėk jų pavadinimą, miestą, industriją arba svetainės situaciją
-- Tonas: draugiškas, žmogiškas, kaip kalbėtų žmogus žmogui — ne reklama, ne korporatyvinė kalba
-- NE: jokių statistikų, jokių išgalvotų faktų apie jų įmonę
-- NE: jokio sprendimo ar paslaugos paminėjimo hook dalyje — tik stebėjimas apie jų situaciją
-- subject ir hook VISADA lietuvių kalba"""
+PRIVALOMA STRUKTŪRA:
+1. Tema: intriguojanti, konkreti, iki 55 simbolių — klausimas arba pastebėjimas apie JŲ verslą
+2. Kreipinys: vardu jei žinomas, "Laba diena!" jei ne
+3. Atidarymas (1-2 sakiniai): konkreti, tikra pastaba apie JŲ verslą — ką pastebėjai, ką patikrinai
+4. Problemos sakinys (1-2 sakiniai): logiškas ryšys tarp pastebėjimo ir prarastos galimybės
+5. Sprendimas (2-3 sakiniai): ką siūlai, kaip tai veikia, kaina — AIŠKIAI ir be jargono
+6. CTA (1 sakinys): vienas kvietimas — 15 min skambutis ar demo
+7. Parašas: {AGENT_NAME} | {AGENCY_NAME} | {AGENCY_EMAIL} | {AGENCY_WEBSITE}
+
+TONO TAISYKLĖS:
+- Rašyk kaip žmogus žmogui — šiltas, paprastas, tikras
+- Jokių buzzwordų: "inovatyvus", "revoliucinis", "holistinis", "sinergija", "ekosistema"
+- Jokių išgalvotų faktų, statistikų ar skaičių apie jų įmonę
+- Jokių frazių: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe"
+- Ilgis: 130–190 žodžių. NE ILGIAU.
+- Siūlyk TIK VIENĄ paslaugą — tą kuri nurodyta
+
+Grąžink TIK laišką — be komentarų, be metaduomenų, be paaiškinimų."""
 
 
 def generate_email(lead, service_keys: list[str], service_target: str = "") -> str:
     """
-    Generate a personalized cold email for a BusinessLead.
-    Returns the email as a plain string (Tema: on first line, then body).
-
-    Hybrid approach:
-    - Claude generates: subject line + personalized hook (JSON)
-    - Python assembles: greeting + hook + fixed benefit block + CTA + signature
+    Generate a hyper-personalized cold email for a BusinessLead.
+    Claude writes the full email based on rich business context + per-service requirements.
     """
     vadovas_first = lead.vadovas.split()[0] if lead.vadovas else ""
-    greeting = f"Laba diena{', ' + vadovas_first if vadovas_first else ''}!"
 
-    # Pick service template
+    # Pick primary service
     valid_keys = [k for k in service_keys if k in SERVICES]
     primary_key = valid_keys[0] if valid_keys else None
-
-    # Map service_target → template key
-    template_key = service_target if service_target in EMAIL_TEMPLATES else (
-        primary_key if primary_key in EMAIL_TEMPLATES else "_default"
-    )
-    tmpl = EMAIL_TEMPLATES[template_key]
-
-    # Build situation context for Claude
-    if lead.website_status == "none":
-        situation = f"{lead.company_name} šiuo metu neturi svetainės internete"
-    elif lead.website_status == "old":
-        year_note = f" (apie {lead.website_year} m.)" if lead.website_year else ""
-        situation = f"{lead.company_name} svetainė pasenusi{year_note}"
-    elif lead.website_status == "unreachable":
-        situation = f"{lead.company_name} svetainė sunkiai pasiekiama arba lėtai kraunasi"
+    if primary_key:
+        svc = SERVICES[primary_key]
+        service_text = f"{svc['lt']} ({svc['price']}): {svc['pitch_lt']}"
     else:
-        situation = f"{lead.company_name} turi veikiančią svetainę"
+        service_text = "skaitmeninės rinkodaros paslauga"
 
-    user_prompt = f"""Sugeneruok 2 personalizuotus elementus šaltam el. laiškui.
+    # Map to requirements
+    req_key = service_target if service_target in SERVICE_REQUIREMENTS else (
+        primary_key if primary_key in SERVICE_REQUIREMENTS else None
+    )
+    requirements = SERVICE_REQUIREMENTS.get(req_key, {})
+    must_include = requirements.get("must_include", [])
+    avoid = requirements.get("avoid", [])
 
-ĮMONĖ: {lead.company_name}
-MIESTAS: {lead.city.capitalize() if lead.city else 'Lietuva'}
-INDUSTRIJA: {lead.industry}
-SITUACIJA: {situation}
-KREIPINYS: {vadovas_first or '(nežinomas)'}
+    # Website situation research context
+    if lead.website_status == "none":
+        website_context = f"{lead.company_name} neturi svetainės internete."
+        research_note = "Jų nėra Google paieškoje. Potencialūs klientai jų neranda."
+    elif lead.website_status == "old":
+        year_note = f" (~{lead.website_year} m.)" if lead.website_year else ""
+        website_context = f"{lead.company_name} svetainė pasenusi{year_note}."
+        research_note = "Svetainė neatnaujinta, gali blogai rodyti mobiliajame, galbūt lėta."
+    elif lead.website_status == "unreachable":
+        website_context = f"{lead.company_name} svetainė neveikia arba lėtai kraunasi."
+        research_note = "Lankytojai negali pasiekti svetainės arba ji palieka blogą įspūdį."
+    else:
+        website_context = f"{lead.company_name} turi veikiančią svetainę."
+        research_note = "Svetainė veikia — fokusas į konversiją ir klientų aptarnavimą."
 
-Grąžink TIKTAI JSON:
-{{"subject": "...", "hook": "..."}}"""
+    # Build requirements block for prompt
+    must_block = ""
+    if must_include:
+        items = "\n".join(f"  • {item}" for item in must_include)
+        must_block = f"\nŠIAME LAIŠKE PRIVALOMA ĮTRAUKTI:\n{items}"
+
+    avoid_block = ""
+    if avoid:
+        items = "\n".join(f"  • {item}" for item in avoid)
+        avoid_block = f"\nVENGTI:\n{items}"
+
+    user_prompt = f"""Parašyk personalizuotą šaltą el. laišką:
+
+TYRIMŲ DUOMENYS APIE ĮMONĘ:
+  Pavadinimas: {lead.company_name}
+  Miestas: {lead.city.capitalize() if lead.city else 'Lietuva'}
+  Industrija: {lead.industry}
+  Vadovas: {vadovas_first or '(nežinomas)'}
+  Interneto situacija: {website_context}
+  Pastaba: {research_note}
+
+SIŪLOMA PASLAUGA (TIKTAI ŠI):
+  {service_text}
+{must_block}
+{avoid_block}
+
+Formato reikalavimai:
+Tema: [konkreti tema iki 55 simbolių]
+
+[Laiškas]
+
+Pagarbiai,
+{AGENT_NAME}
+{AGENCY_NAME}
+{AGENCY_EMAIL}
+{AGENCY_WEBSITE}"""
 
     try:
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=200,
+            max_tokens=600,
             system=[
                 {
                     "type": "text",
@@ -135,65 +186,46 @@ Grąžink TIKTAI JSON:
             ],
             messages=[{"role": "user", "content": user_prompt}],
         )
-        raw = message.content[0].text.strip()
-
-        # Parse JSON — strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        data = json.loads(raw)
-        subject = data.get("subject", "").strip()
-        hook = data.get("hook", "").strip()
-
-        if not subject or not hook:
-            raise ValueError("Empty subject or hook from Claude")
-
-        return _assemble_email(subject, greeting, hook, tmpl)
+        return message.content[0].text.strip()
 
     except Exception as e:
         logger.error(f"Email generation failed for {lead.company_name}: {e}")
-        return _fallback_email(lead, primary_key, vadovas_first, tmpl, situation)
+        return _fallback_email(lead, valid_keys, vadovas_first)
 
 
-def _assemble_email(subject: str, greeting: str, hook: str, tmpl: dict) -> str:
-    """Assemble the full email from parts."""
-    return (
-        f"Tema: {subject}\n\n"
-        f"{greeting}\n\n"
-        f"{hook}\n\n"
-        f"{tmpl['benefit']}\n\n"
-        f"{tmpl['cta']}\n\n"
-        f"Pagarbiai,\n"
-        f"{AGENT_NAME}\n"
-        f"{AGENCY_NAME}\n"
-        f"{AGENCY_EMAIL}\n"
-        f"{AGENCY_WEBSITE}"
-    )
-
-
-def _fallback_email(lead, primary_key, vadovas_first: str, tmpl: dict, situation: str) -> str:
-    """Static fallback — same template structure, static hook based on situation."""
+def _fallback_email(lead, service_keys: list[str], vadovas_first: str) -> str:
+    """Static fallback template if Claude API fails."""
+    services_lt = " + ".join(SERVICES[k]["lt"] for k in service_keys if k in SERVICES)
     greeting = f"Laba diena{', ' + vadovas_first if vadovas_first else ''}!"
 
-    # Static hook from website status
     if lead.website_status == "none":
-        hook = (
-            f"Pastebėjau, kad {lead.company_name} šiuo metu neturi svetainės internete. "
-            f"Šiomis dienomis potencialūs klientai {lead.city or 'Lietuvoje'} pirmiausia ieško paslaugų Google — "
-            "ir jei ten jūsų nėra, jie randa konkurentus."
+        observation = (
+            f"pastebėjau, kad {lead.company_name} šiuo metu neturi svetainės internete. "
+            "Potencialūs klientai ieško paslaugų Google — ir jei ten jūsų nėra, jie randa konkurentus."
         )
     elif lead.website_status in ("old", "unreachable"):
-        hook = (
-            f"Apsilankiau {lead.company_name} svetainėje ir pastebėjau, kad ji galėtų būti atnaujinta. "
-            f"Šiuolaikiniai klientai {lead.city or 'Lietuvoje'} sprendžia greičiau — "
-            "pasenusi svetainė dažnai atbaido dar prieš pirmą skambutį."
+        observation = (
+            f"apsilankiau {lead.company_name} svetainėje ir pastebėjau, kad ji galėtų būti atnaujinta. "
+            "Pasenusi svetainė dažnai atbaido klientus dar prieš pirmą skambutį."
         )
     else:
-        hook = (
-            f"Žiūrėjau {lead.company_name} veiklą internete ir manau, kad yra keletas dalykų, "
-            f"kurie galėtų padėti pritraukti daugiau klientų {lead.city or 'jūsų mieste'}."
+        observation = (
+            f"žiūrėjau {lead.company_name} veiklą internete ir manau, kad galėtumėte gauti "
+            "daugiau klientų su tinkamomis skaitmeninėmis priemonėmis."
         )
 
-    subject = f"{lead.company_name} — klausimas"
-    return _assemble_email(subject, greeting, hook, tmpl)
+    return f"""Tema: {lead.company_name} — klausimas
+
+{greeting}
+
+Rašau iš {AGENCY_NAME} — {observation}
+
+Siūlome: {services_lt}.
+
+Ar turėtumėte 15 minučių trumpam pokalbiui šią savaitę?
+
+Pagarbiai,
+{AGENT_NAME}
+{AGENCY_NAME}
+{AGENCY_EMAIL}
+{AGENCY_WEBSITE}"""
