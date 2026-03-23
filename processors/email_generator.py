@@ -149,7 +149,7 @@ TONAS — KO GRIEŽTAI VENGTI:
 ❌ "Tai reiškia, kad žmonės jūsų apskritai neranda" (gali būti netiesa)
 
 ✅ VIETOJ TO:
-- "Pastebėjau, kad {company} dar neturi savo svetainės..."
+- "Pastebėjau, kad [įmonės pavadinimas] dar neturi savo svetainės..."
 - "Manau, kad su geru puslapiu galėtumėte pasiekti daugiau žmonių internete."
 - "Norėčiau parodyti, kaip tai galėtų atrodyti."
 
