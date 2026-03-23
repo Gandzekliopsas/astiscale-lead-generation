@@ -124,10 +124,16 @@ def _clean(text: str) -> str:
 def _extract_registered_year(text: str) -> Optional[int]:
     """Extract company registration year from page text."""
     patterns = [
-        r"[Įį]registruota\s*[:\s]*(\d{4})-\d{2}-\d{2}",
-        r"[Įį]registruota\s*[:\s]*(\d{4})\.\d{2}\.\d{2}",
-        r"Registracijos data[:\s]*(\d{4})",
-        r"[Įį]steigta\s*[:\s]*(\d{4})",
+        # "Įregistruota: 2024-03-15" or "Įregistruota 2024.03.15"
+        r"[Įį]registruota[^0-9]*(\d{4})",
+        # "Registracijos data: 2024-03-15"
+        r"[Rr]egistracijos\s+data[^0-9]*(\d{4})",
+        # "Įsteigta: 2024-03-15"
+        r"[Įį]steigta[^0-9]*(\d{4})",
+        # "Steigimo data: 2024"
+        r"[Ss]teigimo\s+data[^0-9]*(\d{4})",
+        # "Juridinio asmens registravimo data 2024"
+        r"registravimo\s+data[^0-9]*(\d{4})",
     ]
     for pat in patterns:
         m = re.search(pat, text)
@@ -164,7 +170,7 @@ def search_fast(query: str, city: str = "", max_results: int = 30) -> list:
     leads = []
     seen = set()
     lock = threading.Lock()
-    min_year = datetime.now().year - 1  # must be registered at least 1 year ago
+    min_year = datetime.now().year - 1  # skip companies registered in current or previous year
 
     def fetch_one(url):
         return _fetch_company_fast(url, city=city, industry=query)

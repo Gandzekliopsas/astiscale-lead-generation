@@ -70,7 +70,7 @@ SERVICE_REQUIREMENTS = {
             "Konkreti, tiksli pastaba apie jų situaciją internete — TIKTAI pagal faktus. Jei neturi svetainės — sakyk 'neturi savo svetainės', ne 'jūsų nėra Google'. Jie gali būti Google Maps, socialiniuose tinkluose.",
             "Draugiškas, šiltas tonas — kaip pažįstamas žmogus, kuris pastebėjo galimybę ir nori padėti",
             "Pasiūlyk sukurti NEMOKAMĄ demo svetainę — tikrą, veikiančią bandomąją versiją, kaip atrodytų jų naujas puslapis. Visiškai nemokama. Jei patiks — tada kalbame toliau. Jei ne — jokių įsipareigojimų, jokių išlaidų.",
-            "CTA: paklausti ar norėtų pamatyti šią nemokamą demo svetainę. Įdėk DEMO URL.",
+            "CTA: paklausti ar norėtų pamatyti šią nemokamą demo svetainę. Prašyk atsakyti į laišką — NEKURK jokių URL nuorodų, jokių astiscale.com/demo ar panašių nuorodų.",
             "NEKALBĖTI apie kainą",
         ],
         "avoid": [
@@ -123,7 +123,7 @@ PRIVALOMA STRUKTŪRA:
 3. Atidarymas (1-2 sakiniai): konkreti, tiksli pastaba apie JŲ verslą — ką realiai pastebėjai
 4. Galimybė (1-2 sakiniai): ką galima padaryti — be dramos, be bauginimo, natūraliai
 5. Pasiūlymas (1-2 sakiniai): ką konkrečiai siūlai — BEZ KAINOS
-6. CTA: paprašyk trumpo atsakymo. Įdėk pateiktą DEMO URL kaip nuorodą tekste.
+6. CTA: paprašyk trumpo atsakymo. Jei yra pateiktas DEMO URL — įdėk jį kaip nuorodą. Jei DEMO URL nepateiktas — NIEKADA nekurk nuorodų pats, tiesiog paprašyk atsakymo.
 7. Parašas: {AGENT_NAME} | {AGENCY_NAME} | {AGENCY_EMAIL} | {AGENCY_WEBSITE}
 
 LIETUVIŠKA GRAMATIKA — DAŽNIAUSIOS KLAIDOS (PRIVALOMA ŽINOTI):
@@ -155,6 +155,12 @@ TONAS — KO GRIEŽTAI VENGTI:
 
 DRAUDŽIAMI ŽODŽIAI: "inovatyvus", "revoliucinis", "holistinis", "sinergija", "optimizuoti", "ekosistema"
 DRAUDŽIAMOS FRAZĖS: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe", "Esu įsitikinęs", "15 minučių skambutis"
+
+LAIKAS IR VEIKSMAI:
+❌ "Sukūriau demo svetainę jums" — tai netiesa, dar nesukūrėte
+✅ "Sukursiu nemokamą demo svetainę" — siūlai sukurti, jei jie sutinka
+❌ Niekada neteigk, kad kažkas jau padaryta jei dar nebuvo padaryta
+✅ Visi pasiūlymai — ateities laikas: "sukursiu", "parodysiu", "paruošiu"
 
 ILGIS: 100–150 žodžių. NE ILGIAU.
 KAINA: Jokių skaičių susijusių su mokėjimu pirmame laiške.

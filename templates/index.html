@@ -1195,9 +1195,15 @@ async function openLead(id) {
     sendBtn.style.display = 'none';
   }
 
-  document.getElementById('emailLink').href = l.email
-    ? `mailto:${l.email}?subject=${encodeURIComponent(emailSubject(l.email_draft))}&body=${encodeURIComponent(emailBody(l.email_draft))}`
-    : '#';
+  // Open in email client link — hide when no email
+  const emailLink = document.getElementById('emailLink');
+  if (l.email) {
+    emailLink.href = `mailto:${l.email}?subject=${encodeURIComponent(emailSubject(l.email_draft))}&body=${encodeURIComponent(emailBody(l.email_draft))}`;
+    emailLink.style.display = '';
+  } else {
+    emailLink.href = '#';
+    emailLink.style.display = 'none';
+  }
 
   switchTab('email');
   document.getElementById('modalOverlay').classList.add('open');
