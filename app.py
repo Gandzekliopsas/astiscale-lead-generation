@@ -291,6 +291,31 @@ def bulk_send_emails(body: BulkSendRequest):
     return results
 
 
+# ── API: Delete leads ─────────────────────────────────────────────────────────
+
+@app.delete("/api/leads/{lead_id}")
+def delete_lead(lead_id: int):
+    """Permanently delete a single lead."""
+    lead = db.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(404, "Lead not found")
+    db.delete_lead(lead_id)
+    return {"ok": True}
+
+
+class BulkDeleteRequest(BaseModel):
+    lead_ids: list
+
+
+@app.post("/api/leads/bulk-delete")
+def bulk_delete_leads(body: BulkDeleteRequest):
+    """Permanently delete multiple leads."""
+    if not body.lead_ids:
+        raise HTTPException(400, "No lead IDs provided")
+    db.delete_leads_bulk(body.lead_ids)
+    return {"ok": True, "deleted": len(body.lead_ids)}
+
+
 # ── API: Send email ───────────────────────────────────────────────────────────
 
 @app.post("/api/leads/{lead_id}/send-email")

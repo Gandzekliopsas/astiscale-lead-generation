@@ -353,6 +353,21 @@ def update_lead_edit(lead_id: int, company_name: str = None, email: str = None,
         db.execute(f"UPDATE leads SET {', '.join(fields)} WHERE id=?", params)
 
 
+def delete_lead(lead_id: int):
+    """Permanently delete a single lead."""
+    with get_db() as db:
+        db.execute("DELETE FROM leads WHERE id=?", (lead_id,))
+
+
+def delete_leads_bulk(lead_ids: list):
+    """Permanently delete multiple leads by ID list."""
+    if not lead_ids:
+        return
+    placeholders = ",".join("?" * len(lead_ids))
+    with get_db() as db:
+        db.execute(f"DELETE FROM leads WHERE id IN ({placeholders})", lead_ids)
+
+
 def mark_reply_body(lead_id: int, body: str):
     """Store the text of a reply received via IMAP."""
     with get_db() as db:

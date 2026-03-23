@@ -500,6 +500,9 @@ select.form-control { cursor: pointer; }
         <button class="btn btn-primary btn-sm" id="bulkSendBtn" onclick="bulkSendEmails()" disabled style="margin-left:8px">
           📤 Siųsti pasirinktus
         </button>
+        <button class="btn btn-sm" id="bulkDeleteBtn" onclick="bulkDeleteLeads()" disabled style="margin-left:4px;background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3)">
+          🗑️ Ištrinti pasirinktus
+        </button>
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
             <input type="checkbox" id="showDuplicates" onchange="loadLeads()" style="accent-color:var(--accent)">
@@ -820,6 +823,7 @@ select.form-control { cursor: pointer; }
       </div>
 
       <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="deleteLead()" style="margin-right:auto;background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3)">🗑️ Ištrinti</button>
         <button class="btn btn-ghost btn-sm" id="contactedBtn" onclick="toggleContacted()">✓ Pažymėti kaip susisiekta</button>
         <button class="btn btn-send btn-sm" id="sendEmailBtn" onclick="sendEmail()">📤 Siųsti el. laišką</button>
         <a id="emailLink" href="#" class="btn btn-ghost btn-sm" target="_blank">📧 Atidaryti el. pašto programą</a>
@@ -1660,6 +1664,7 @@ function updateSelectedCount() {
   const count = cbs.length;
   document.getElementById('selectedCount').textContent = count + ' pasirinkta';
   document.getElementById('bulkSendBtn').disabled = count === 0;
+  document.getElementById('bulkDeleteBtn').disabled = count === 0;
 }
 
 async function bulkSendEmails() {
@@ -1688,6 +1693,55 @@ async function bulkSendEmails() {
     btn.textContent = '📤 Siųsti pasirinktus';
     btn.disabled = false;
     document.getElementById('selectAll').checked = false;
+  }
+}
+
+// ── Delete single lead (from modal) ───────────────────
+async function deleteLead() {
+  if (!currentLeadId) return;
+  if (!confirm('Ištrinti šį leadą? Veiksmo negalima atšaukti.')) return;
+  try {
+    const r = await fetch(`/api/leads/${currentLeadId}`, { method: 'DELETE' });
+    if (r.ok) {
+      showToast('🗑️ Leadą ištrintas', 'ok');
+      closeModal();
+      loadLeads();
+    } else {
+      showToast('❌ Nepavyko ištrinti', 'err');
+    }
+  } catch (e) {
+    showToast('❌ Tinklo klaida', 'err');
+  }
+}
+
+// ── Bulk delete selected leads ─────────────────────────
+async function bulkDeleteLeads() {
+  const ids = [...document.querySelectorAll('.lead-cb:checked')].map(cb => parseInt(cb.dataset.id));
+  if (!ids.length) return;
+  if (!confirm(`Ištrinti ${ids.length} lead(ų)? Veiksmo negalima atšaukti.`)) return;
+  const btn = document.getElementById('bulkDeleteBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Trinamas...';
+  try {
+    const r = await fetch('/api/leads/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_ids: ids }),
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      showToast(`🗑️ Ištrinta: ${data.deleted}`, 'ok');
+      loadLeads();
+    } else {
+      showToast('❌ Nepavyko ištrinti', 'err');
+    }
+  } catch (e) {
+    showToast('❌ Klaida: ' + e.message, 'err');
+  } finally {
+    btn.textContent = '🗑️ Ištrinti pasirinktus';
+    btn.disabled = false;
+    document.getElementById('selectAll').checked = false;
+    updateSelectedCount();
   }
 }
 
