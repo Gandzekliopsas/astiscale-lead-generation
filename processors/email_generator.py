@@ -67,17 +67,20 @@ SERVICE_REQUIREMENTS = {
     },
     "website": {
         "must_include": [
-            "Konkreti pastaba apie JŲ svetainę arba kad jos visai neturi — specifiškai pagal jų situaciją",
-            "Skausmo taškas: be modernios svetainės Google paieškoje jų neranda — klientai eina pas konkurentus",
-            "Pasiūlyk NEMOKAMĄ svetainės auditą arba NEMOKAMĄ maketo eskizą — kaip konkrečiai atrodytų JŲ nauja svetainė",
-            "CTA: paklausti ar norėtų gauti nemokamą auditą/eskizą — be jokių įsipareigojimų",
-            "NEKALBĖTI apie kainą pirmame laiške",
+            "Konkreti, tiksli pastaba apie jų situaciją internete — TIKTAI pagal faktus. Jei neturi svetainės — sakyk 'neturi savo svetainės', ne 'jūsų nėra Google'. Jie gali būti Google Maps, socialiniuose tinkluose.",
+            "Draugiškas, šiltas tonas — kaip pažįstamas žmogus, kuris pastebėjo galimybę ir nori padėti",
+            "Pasiūlyk sukurti NEMOKAMĄ demo svetainę — tikrą, veikiančią bandomąją versiją, kaip atrodytų jų naujas puslapis. Visiškai nemokama. Jei patiks — tada kalbame toliau. Jei ne — jokių įsipareigojimų, jokių išlaidų.",
+            "CTA: paklausti ar norėtų pamatyti šią nemokamą demo svetainę. Įdėk DEMO URL.",
+            "NEKALBĖTI apie kainą",
         ],
         "avoid": [
-            "Neminėk kainos (€499 ar bet kokios) pirmame laiške",
+            "Neminėk kainos pirmame laiške",
             "Neminėk chatbot ar kitų paslaugų",
-            "Neišgalvok faktų apie jų svetainę kurių nežinai",
-            "Nesiūlyk '15 minučių skambučio' kaip CTA",
+            "Neteigk kad jų 'nėra Google paieškoje' jei tai gali būti netiesa — sakyk 'neturi savo svetainės'",
+            "Nesiūlyk '15 minučių skambučio'",
+            "Nevartok: 'Jūsų konkurentai jau čia', 'kiekvienas mėnuo — tai išleista galimybė', 'Paprasta.'",
+            "Nesiūlyk 'maketo eskizo' — siūlyk tikrą nemokamą demo svetainę",
+            "Nekaltink ar negąsdink — siūlyk galimybę, ne problemą",
         ],
     },
     "meta_ads": {
@@ -109,34 +112,52 @@ SERVICE_REQUIREMENTS = {
 }
 
 # ── System prompt (stays cached) ──────────────────────────────────────────────
-SYSTEM_PROMPT = f"""Tu esi {AGENT_NAME} iš {AGENCY_NAME} — Lietuvos AI agentūros įkūrėjas.
+SYSTEM_PROMPT = f"""Tu esi {AGENT_NAME} iš {AGENCY_NAME} — Lietuvos skaitmeninės agentūros įkūrėjas.
 Rašai TIKRUS šaltus el. laiškus realiems Lietuvos verslininkams LIETUVIŠKAI.
 
-ESMINIS PRINCIPAS: Laiškas turi atrodyti kaip TU asmeniškai pažiūrejai į JŲ verslą ir parašei jiems — ne šablonas, ne masinė siuntinėjimas. Natūrali lietuvių kalba, kaip rašytų tikras lietuvis.
+ESMINIS PRINCIPAS: Laiškas turi atrodyti kaip TU asmeniškai pažiūrejai į JŲ verslą ir parašei — ne šablonas, ne masinis siuntimas. Tonas: kaip pažįstamas, kuris pastebėjo galimybę ir ja dalinasi. Ne pardavėjas, ne gąsdintojas.
 
 PRIVALOMA STRUKTŪRA:
-1. Tema: konkreti, iki 55 simbolių — klausimas arba pastebėjimas apie JŲ verslą
+1. Tema: konkreti, iki 55 simbolių — pastebėjimas arba klausimas. NIEKADA nepradėk "kodėl jūsų..." — tai kaltinantis tonas.
 2. Kreipinys: vardu jei žinomas, "Laba diena!" jei ne
-3. Atidarymas (1-2 sakiniai): konkreti pastaba apie JŲ verslą — ką pastebėjai
-4. Problemos sakinys (1-2 sakiniai): prarastos galimybės — natūraliai, be dramos
-5. Sprendimas (1-2 sakiniai): trumpai ką siūlai — BEZ KAINOS pirmame laiške
-6. CTA: pasiūlyk pažiūrėti NEMOKAMĄ demo — įdėk DEMO_URL nuorodą tekste
+3. Atidarymas (1-2 sakiniai): konkreti, tiksli pastaba apie JŲ verslą — ką realiai pastebėjai
+4. Galimybė (1-2 sakiniai): ką galima padaryti — be dramos, be bauginimo, natūraliai
+5. Pasiūlymas (1-2 sakiniai): ką konkrečiai siūlai — BEZ KAINOS
+6. CTA: paprašyk trumpo atsakymo. Įdėk pateiktą DEMO URL kaip nuorodą tekste.
 7. Parašas: {AGENT_NAME} | {AGENCY_NAME} | {AGENCY_EMAIL} | {AGENCY_WEBSITE}
 
-LIETUVIŠKOS KALBOS TAISYKLĖS (LABAI SVARBU):
-- Rašyk kaip tikras lietuvis — natūralūs sakiniai, teisingi linksniai, taisyklinga rašyba
-- Naudok lietuviškus žodžius: "puiku" ne "ok", "pavyzdžiui" ne "pvz.", taisyklingos galūnės
-- Jokio vertimo iš anglų — jokie "šitas yra geras" tipo konstrukcijos
-- Tonas: šiltas, draugiškas, tikras — kaip žinutė pažįstamam verslininkui
-- Jokių buzzwordų: "inovatyvus", "revoliucinis", "holistinis", "sinergija"
-- Jokių frazių: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe", "Esu įsitikinęs"
-- Ilgis: 110–160 žodžių. NE ILGIAU.
+LIETUVIŠKA GRAMATIKA — DAŽNIAUSIOS KLAIDOS (PRIVALOMA ŽINOTI):
+❌ NIEKADA nerašyk:
+- "praranda" kai kalbama apie "jūs" → rašyk "prarandate"
+- "gausime" kai siūlai kažką gavėjui → rašyk "gausite"
+- "negranda" → rašyk "neranda"
+- "bylotų" → rašyk "rodytų" arba "parodytų"
+- "smagią dalį" — beprasmė frazė, nevartok
+- "šitas" → rašyk "šis"
+- Jokio vertimo iš anglų: "tai yra geras" → "tai gerai"
 
-⛔ ABSOLIUČIAI DRAUDŽIAMA PIRMAME LAIŠKE:
-- Jokios kainos — ne €300, ne €149, ne €499, ne jokie skaičiai susiję su mokėjimu
-- Joks "15 minučių skambutis" kaip CTA
-- Chatbot CTA: paklausti ar norėtų kad SUKURTUM jiems nemokamą AI demo
-- Svetainės CTA: paklausti ar norėtų gauti NEMOKAMĄ svetainės auditą arba maketo eskizą
+✅ GRAMATIKA:
+- Veiksmažodžiai su "jūs": neranda**te**, praranda**te**, gaunate, matote, turite
+- Veiksmažodžiai su "aš": pasiūlysiu, sukursiu, parodysiu, galiu
+- Taisyklingi linksniai: "jūsų svetain**ė**", "jūsų verslui", "jūsų klientams"
+
+TONAS — KO GRIEŽTAI VENGTI:
+❌ "Jūsų konkurentai jau čia — ir klientai kreipiasi į juos"
+❌ "Kiekvienas mėnuo — tai išleista galimybė"
+❌ "Paprasta." (vienas žodis kaip sakinys — skamba arogantiškai)
+❌ "kodėl klientai jūsų neranda?" (kaltinantis tonas)
+❌ "Tai reiškia, kad žmonės jūsų apskritai neranda" (gali būti netiesa)
+
+✅ VIETOJ TO:
+- "Pastebėjau, kad {company} dar neturi savo svetainės..."
+- "Manau, kad su geru puslapiu galėtumėte pasiekti daugiau žmonių internete."
+- "Norėčiau parodyti, kaip tai galėtų atrodyti."
+
+DRAUDŽIAMI ŽODŽIAI: "inovatyvus", "revoliucinis", "holistinis", "sinergija", "optimizuoti", "ekosistema"
+DRAUDŽIAMOS FRAZĖS: "Tikimės bendradarbiauti", "Džiaugiuosi galimybe", "Esu įsitikinęs", "15 minučių skambutis"
+
+ILGIS: 100–150 žodžių. NE ILGIAU.
+KAINA: Jokių skaičių susijusių su mokėjimu pirmame laiške.
 
 Grąžink TIK laišką — be komentarų, be metaduomenų."""
 
@@ -167,8 +188,8 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
 
     # Website situation research context
     if lead.website_status == "none":
-        website_context = f"{lead.company_name} neturi svetainės internete."
-        research_note = "Jų nėra Google paieškoje. Potencialūs klientai jų neranda."
+        website_context = f"{lead.company_name} neturi savo svetainės."
+        research_note = "Jie veikia ir turi klientų, bet internete neturi savo puslapio — tik galbūt socialiniai tinklai ar katalogai. Tai galimybė."
     elif lead.website_status == "old":
         year_note = f" (~{lead.website_year} m.)" if lead.website_year else ""
         website_context = f"{lead.company_name} svetainė pasenusi{year_note}."
@@ -191,7 +212,14 @@ def generate_email(lead, service_keys: list[str], service_target: str = "") -> s
         items = "\n".join(f"  • {item}" for item in avoid)
         avoid_block = f"\nVENGTI:\n{items}"
 
-    demo_block = ""
+    # For chatbot service: include an actual working demo URL (industry-matched)
+    # For website service: no demo URL — offer is to BUILD them one, not link to existing
+    req_key_for_demo = service_target if service_target in SERVICE_REQUIREMENTS else primary_key
+    if req_key_for_demo == "chatbot":
+        demo_url = get_demo_url(lead.industry)
+        demo_block = f"\nDEMO URL — įdėk šią nuorodą laiške kaip CTA nuorodą tekste: {demo_url}"
+    else:
+        demo_block = ""
 
     user_prompt = f"""Parašyk personalizuotą šaltą el. laišką:
 

@@ -14,6 +14,7 @@ import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 from urllib.parse import quote_plus, urljoin
 
@@ -88,6 +89,7 @@ class BusinessLead:
     # Filled later
     website_status: str = ""
     website_year: Optional[int] = None
+    registered_year: Optional[int] = None
     recommended_services: list = field(default_factory=list)
     email_draft: str = ""
     notes: str = ""
@@ -119,6 +121,23 @@ def _clean(text: str) -> str:
     return " ".join(text.split()).strip() if text else ""
 
 
+def _extract_registered_year(text: str) -> Optional[int]:
+    """Extract company registration year from page text."""
+    patterns = [
+        r"[Įį]registruota\s*[:\s]*(\d{4})-\d{2}-\d{2}",
+        r"[Įį]registruota\s*[:\s]*(\d{4})\.\d{2}\.\d{2}",
+        r"Registracijos data[:\s]*(\d{4})",
+        r"[Įį]steigta\s*[:\s]*(\d{4})",
+    ]
+    for pat in patterns:
+        m = re.search(pat, text)
+        if m:
+            year = int(m.group(1))
+            if 1990 <= year <= datetime.now().year:
+                return year
+    return None
+
+
 def _is_valid_name(text: str) -> bool:
     """Check that text looks like a Lithuanian personal name."""
     if not text:
@@ -145,6 +164,7 @@ def search_fast(query: str, city: str = "", max_results: int = 30) -> list:
     leads = []
     seen = set()
     lock = threading.Lock()
+    min_year = datetime.now().year - 1  # must be registered at least 1 year ago
 
     def fetch_one(url):
         return _fetch_company_fast(url, city=city, industry=query)
@@ -152,6 +172,10 @@ def search_fast(query: str, city: str = "", max_results: int = 30) -> list:
     with ThreadPoolExecutor(max_workers=2) as ex:
         for lead in ex.map(fetch_one, company_urls[:max_results * 2]):
             if lead and lead.company_name:
+                # Skip companies registered less than 1 year ago
+                if lead.registered_year and lead.registered_year >= min_year:
+                    logger.debug(f"  Skipping {lead.company_name} — registered {lead.registered_year} (too new)")
+                    continue
                 key = lead.company_name.lower().strip()
                 with lock:
                     if key not in seen and len(leads) < max_results:
@@ -371,6 +395,9 @@ def _parse_company_from_soup(soup: BeautifulSoup, url: str = "", city: str = "",
         if addr_el:
             lead.address = _clean(addr_el.get_text())
 
+        # ── Registration year ─────────────────────────────────────────────────
+        lead.registered_year = _extract_registered_year(text)
+
         logger.info(
             f"  Parsed: {lead.company_name[:40]} | "
             f"phone={bool(lead.phone)} | email={bool(lead.email)} | web={bool(lead.website)}"
@@ -500,11 +527,15 @@ def _parse_company_page(url: str, city: str = "", industry: str = "") -> Optiona
         if addr_el:
             lead.address = _clean(addr_el.get_text())
 
+        # ── Registration year ─────────────────────────────────────────────────
+        lead.registered_year = _extract_registered_year(text)
+
         logger.info(
             f"  Parsed: {lead.company_name[:40]} | "
             f"vadovas={lead.vadovas or '--'} | "
             f"email={lead.email or '--'} | "
-            f"web={bool(lead.website)}"
+            f"web={bool(lead.website)} | "
+            f"reg={lead.registered_year or '--'}"
         )
         return lead
 
